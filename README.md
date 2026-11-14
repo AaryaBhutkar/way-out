@@ -242,7 +242,7 @@ INTERNAL_TOKEN=         # shared secret between Line agent and API
 |---|---|---|
 | **Prem** | Foundation + coordination. Codes 11:10 AM–2 PM, away 2 PM–1 AM, leads integration from 1 AM | [`docs/team/prem.md`](docs/team/prem.md) |
 | **Deep** | Resident side: voice agent, interpreter, honesty, calls, dedupe, evals | [`docs/team/deep.md`](docs/team/deep.md) |
-| **Dev 2** (our 4th teammate; replace with their name) | Responder side: console, driver app, dispatch, fire map, stand-ins | [`docs/team/dev-2.md`](docs/team/dev-2.md) |
+| **Yash** | Responder side: console, driver app, dispatch, fire map, stand-ins | [`docs/team/yash.md`](docs/team/yash.md) |
 | **Aarya** | Story, data, firefighter interview, deck, video, Devpost | [`docs/team/aarya.md`](docs/team/aarya.md) |
 
 | Time (Sat → Sun) | Milestone |

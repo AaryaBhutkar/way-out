@@ -44,7 +44,7 @@ label demo-blocker b60205 "Breaks the demo"
 label P0 b60205 "Must work for the demo"
 label P1 fbca04 "Makes it win"
 label P2 c5def5 "If time"
-for who in prem deep dev-2 aarya; do label "owner:$who" 5319e7 ""; done
+for who in prem deep yash aarya; do label "owner:$who" 5319e7 ""; done
 
 existing="$(gh issue list -R "$REPO" --state all --limit 500 --json title -q '.[].title')"
 for f in docs/team/*.md; do

@@ -31,7 +31,7 @@ from api.routes import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 ROUTERS = [
-    # core (Prem → Dev 2)
+    # core (Prem → Yash)
     health,
     households,
     ride_requests,
@@ -42,7 +42,7 @@ ROUTERS = [
     calls,
     zones,
     system,
-    # responder side (Dev 2)
+    # responder side (Yash)
     plans,
     vehicles,
     roads,

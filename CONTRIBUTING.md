@@ -16,7 +16,7 @@ Flow: `feat/*` → PR → `develop` → (release PR) → `staging` → (release 
 
 ## Tasks and IDs
 
-- Every task in `docs/team/*.md` has an ID: `P-` (Prem), `D1-` (Deep), `D2-` (Dev 2), `A-` (Aarya).
+- Every task in `docs/team/*.md` has an ID: `P-` (Prem), `D1-` (Deep), `D2-` (Yash), `A-` (Aarya).
 - Create a GitHub Issue per P0/P1 task with the same ID in the title, e.g. `D1-03 Honesty guard + status templates`.
 - Branch name: `feat/D1-03-honesty-guard`. PR title: `D1-03: honesty guard + status templates`. The PR body says `Closes #<issue>`.
 
@@ -66,7 +66,7 @@ Closes #
 | `v0.3` | M3, 1 AM | fire map, SOS, dedupe, /system | `staging` |
 | `v1.0` | ~4:30 AM | demo build, frozen | `staging` → `main` (Prem) |
 
-Deep and Dev 2 cut `v0.1`–`v0.3` together (`develop → staging` PR, one approves the other's). Only Prem merges into `main`.
+Deep and Yash cut `v0.1`–`v0.3` together (`develop → staging` PR, one approves the other's). Only Prem merges into `main`.
 
 After `v1.0`, only `fix/*` PRs, each approved by Prem.
 

@@ -1,6 +1,4 @@
-# Dev 2: responder side (console, driver app, dispatch, fire map, simulation)
-
-> "Dev 2" is our 4th teammate. Replace it with their name across the repo once we know it.
+# Yash: responder side (console, driver app, dispatch, fire map, simulation)
 
 **You own:** everything dispatchers and drivers see and decide, plus the simulated world.
 **Folders:** `web/` (except the kiosk, `/calls`, `/system`, `/drill`), `api/dispatch/`, `api/hazard/`, `api/sim/`, `api/routes/{plans,vehicles,roads,hazards,sim}.py`
@@ -40,7 +38,7 @@ Read first: `README.md`, `docs/ARCHITECTURE.md`, `AGENTS.md`, `docs/CONTRACT.md`
 
 ## Claude Code starter prompt (D2-01 + D2-03)
 ```
-Read README.md, AGENTS.md, docs/CONTRACT.md and docs/team/dev-2.md. On feat/D2-01-web-scaffold create a
+Read README.md, AGENTS.md, docs/CONTRACT.md and docs/team/yash.md. On feat/D2-01-web-scaffold create a
 Next.js App Router app in web/ with Tailwind, shadcn/ui, MapLibre GL (dark basemap) and deck.gl. Build
 lib/live.ts: a WebSocket client to NEXT_PUBLIC_API_URL/live with reconnect, feeding a Zustand store per
 collection (households, requests, assignments, vehicles, hazards, zones). Then on feat/D2-03-console

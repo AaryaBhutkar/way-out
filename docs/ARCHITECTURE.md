@@ -98,13 +98,13 @@ flowchart TB
 | **Dialer + reach ladder** | Calls homes in priority order, retries, texts, door-check list | asyncio worker | `api/agent/dialer.py` | Deep |
 | **Callback worker** | Calls residents when their ride status changes | asyncio worker | `api/agent/callbacks.py` | Deep |
 | **Zone watcher** | Reads Ready/Set/Go pages with TinyFish and starts calls at SET | TinyFish + cron | `api/routes/zones.py` | Deep |
-| **Core rules** | Request status machine, offers, atomic accept, expiry, audit log | FastAPI, Motor | `api/requests.py`, `api/routes/assignments.py` | Prem → Dev 2 |
-| **Live hub** | Turns Mongo change streams into WebSocket events | FastAPI WebSocket | `api/live.py` | Prem → Dev 2 |
-| **Dispatcher (solver)** | Plans which vehicle picks up whom, re-plans on change | Python, OR-Tools | `api/dispatch/` | Dev 2 |
-| **Hazard service** | Fire front, arrival time per home, automatic road closures | Python (NumPy, Shapely) | `api/hazard/` | Dev 2 |
-| **Simulator** | 200 stand-in homes, drivers, fire clock, impact comparison | Python | `api/sim/` | Dev 2 |
-| **Console** | Dispatcher map, requests, plan approval, closures, alerts | Next.js, MapLibre, deck.gl | `web/app/console/` | Dev 2 |
-| **Driver app** | Offers, run, GPS, pickup confirmation, SOS, man-down | Next.js PWA | `web/app/driver/` | Dev 2 |
+| **Core rules** | Request status machine, offers, atomic accept, expiry, audit log | FastAPI, Motor | `api/requests.py`, `api/routes/assignments.py` | Prem → Yash |
+| **Live hub** | Turns Mongo change streams into WebSocket events | FastAPI WebSocket | `api/live.py` | Prem → Yash |
+| **Dispatcher (solver)** | Plans which vehicle picks up whom, re-plans on change | Python, OR-Tools | `api/dispatch/` | Yash |
+| **Hazard service** | Fire front, arrival time per home, automatic road closures | Python (NumPy, Shapely) | `api/hazard/` | Yash |
+| **Simulator** | 200 stand-in homes, drivers, fire clock, impact comparison | Python | `api/sim/` | Yash |
+| **Console** | Dispatcher map, requests, plan approval, closures, alerts | Next.js, MapLibre, deck.gl | `web/app/console/` | Yash |
+| **Driver app** | Offers, run, GPS, pickup confirmation, SOS, man-down | Next.js PWA | `web/app/driver/` | Yash |
 | **Call floor** | Live transcripts and records | Next.js | `web/app/calls/` | Deep |
 | **System page** | Metrics, evals, audit trail | Next.js | `web/app/system/` | Deep |
 | **Evals** | Persona calls, Claude judge, accuracy and honesty numbers | Python | `evals/` | Deep |

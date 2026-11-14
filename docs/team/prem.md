@@ -27,11 +27,11 @@
 |---|---|---|---|
 | **P-01** | 11:10–11:30 | Create repo `wayout`, push all docs, create `develop` + `staging` from `main`, branch protection (PR + CI required), PR template, issues for every task ID (`P-`, `D1-`, `D2-`, `A-`) | Everyone can clone, sees their issues |
 | **P-02** | 11:30–12:15 | **API skeleton**: FastAPI app, `core/config.py` (ENV → DB name), Mongo client (motor), Pydantic models for every collection in CONTRACT §1, indexes (`2dsphere`, callback `key` unique), `GET /health` (env, version, gitSha), Dockerfile, `ci.yml` (ruff + pytest; web lint/build) | `pytest` green in CI, `/health` returns locally |
-| **P-03** | 12:15–1:15 | **Core rules**: `api/requests.py` (`transition()` with legal moves + audit), assignments `approve/accept/decline/cancel` + 2-min expiry (background task), `callbacks` queue (idempotent key), `GET /households`, `GET /requests/open`, **`/live` WebSocket** fed by Mongo change streams. Tests: illegal transition raises, **20 concurrent accepts → exactly 1 `accepted`**, duplicate callback ignored | Tests green; Dev 2 can call approve/accept |
+| **P-03** | 12:15–1:15 | **Core rules**: `api/requests.py` (`transition()` with legal moves + audit), assignments `approve/accept/decline/cancel` + 2-min expiry (background task), `callbacks` queue (idempotent key), `GET /households`, `GET /requests/open`, **`/live` WebSocket** fed by Mongo change streams. Tests: illegal transition raises, **20 concurrent accepts → exactly 1 `accepted`**, duplicate callback ignored | Tests green; Yash can call approve/accept |
 | **P-04** | 1:15–1:50 | **Three environments**: Vultr: `infra/docker-compose.yml` with `api-dev`, `api-staging`, `api-prod` + Caddy (auto-HTTPS for `api-dev.`, `api-staging.`, `api.`). `deploy.yml` (push to branch → SSH → compose up). Vercel: branch domains `dev.` → `develop`, `staging.` → `staging`, `app.` → `main`. Atlas: `wayout_dev / _staging / _prod`. GitHub Environments with secrets | `curl https://api-dev.<domain>/health` shows `env: dev` and the git sha |
-| **P-05** | 1:50–2:00 | **Handoff**: write `docs/team/handoff.md` (what's done, what isn't, URLs, where the keys are, any open contract questions). Tag `v0.0`. Post in team chat: "Foundation done, Dev 2 owns core/infra fixes until 1 AM" | Team acknowledges |
+| **P-05** | 1:50–2:00 | **Handoff**: write `docs/team/handoff.md` (what's done, what isn't, URLs, where the keys are, any open contract questions). Tag `v0.0`. Post in team chat: "Foundation done, Yash owns core/infra fixes until 1 AM" | Team acknowledges |
 
-**If you're running late:** do P-01 → P-02 → P-03 first. Hand P-04 (deploy) to Dev 2 with notes. Dev 2 can finish it at the 6 PM release.
+**If you're running late:** do P-01 → P-02 → P-03 first. Hand P-04 (deploy) to Yash with notes. Yash can finish it at the 6 PM release.
 
 ### Claude Code starter prompt (P-02 + P-03)
 ```
@@ -55,7 +55,7 @@ Optional, if you have your phone: glance at team chat at **6 PM (M1)** and **10 
 | **P-10** | 1:00–1:45 | Pull `develop`. Run the **full demo flow on staging** end to end with your own phone as Rosa. File every break as an issue labeled `demo-blocker` and assign it |
 | **P-11** | 1:45–4:30 | Bug-bash lead: triage, review and merge `fix/*` PRs, keep `develop` green. Only `demo-blocker` and P1 fixes get in after 1 AM |
 | **P-12** | 4:30–5:00 | **Release `v1.0`**: PR `develop → staging`, smoke test, PR `staging → main`. Production smoke test with 2 real phones. Freeze |
-| **P-13** | 5:00–8:30 | Rehearse the 3-minute demo ×3 with Aarya (you or Dev 2 plays the driver phone). Fix only what breaks the demo. Record the backup video of a clean run |
+| **P-13** | 5:00–8:30 | Rehearse the 3-minute demo ×3 with Aarya (you or Yash plays the driver phone). Fix only what breaks the demo. Record the backup video of a clean run |
 | **P-14** | 8:30–10:30 | Devpost with Aarya: links (live app, repo, video), team, "built with", AI disclosure, credits. **Submit by 10:30 (not a draft).** Hard deadline 11:00 |
 | **P-15** | 12:00–2:00 PM | Expo: run the console. Check `/health` on prod before every judge visit |
 
@@ -63,4 +63,4 @@ Optional, if you have your phone: glance at team chat at **6 PM (M1)** and **10 
 - [ ] Standups (5 min): 11:10 AM, 2:00 PM (handoff), 6:00 PM (M1, without you), 10:00 PM (M2, without you), 1:00 AM, 5:00 AM, 9:00 AM
 - [ ] Blocked more than 20 minutes → post in chat with the task ID
 - [ ] One person merges to `main`: you. While you're away, nobody merges to `main`
-- [ ] Sleep plan: Aarya 1–3 AM, Deep 3–5 AM, Dev 2 5–7 AM. You stay up from 1 AM
+- [ ] Sleep plan: Aarya 1–3 AM, Deep 3–5 AM, Yash 5–7 AM. You stay up from 1 AM

@@ -2,7 +2,7 @@
 
 Everyone builds against this file. **Changing a field, an endpoint, or an event name?** Open a PR that edits this file first, label it `contract`, and tag the others. Keep old fields working until nothing reads them.
 
-Prem writes v1 by **2:00 PM Saturday**. After that, Deep and Dev 2 co-own it.
+Prem writes v1 by **2:00 PM Saturday**. After that, Deep and Yash co-own it.
 
 ---
 
@@ -121,22 +121,22 @@ Auth: dashboard and driver endpoints are open in demo mode. `/agent/*` and webho
 | GET | `/households?zoneId=` | → `[household]` | Prem |
 | GET | `/requests/open` | → `[request + household]` sorted by deadline | Prem |
 | POST | `/requests/{id}/escalate` | `{reason}` | Prem |
-| POST | `/plans/solve` | `{solver: greedy\|ortools}` → plan | Dev 2 |
-| GET | `/plans/latest` | → plan + proposed assignments | Dev 2 |
+| POST | `/plans/solve` | `{solver: greedy\|ortools}` → plan | Yash |
+| GET | `/plans/latest` | → plan + proposed assignments | Yash |
 | POST | `/assignments/{id}/approve` | → assignment | Prem (core) |
 | POST | `/assignments/{id}/accept` | → `{result: accepted\|changed}` | Prem (core) |
 | POST | `/assignments/{id}/decline` | → assignment | Prem (core) |
 | POST | `/assignments/{id}/cancel` | driver can't make it → revoke | Prem (core) |
-| POST | `/vehicles/{id}/position` | `{lon, lat, heading, speedMps}` | Dev 2 |
-| POST | `/vehicles/{id}/safety` | `{state, lon, lat}` | Dev 2 |
-| GET | `/vehicles` | → `[vehicle]` | Dev 2 |
-| POST | `/roads/closures` | `{geometry, source}` → triggers re-plan | Dev 2 |
-| GET | `/hazards` | → fire front, detections, deadlines | Dev 2 |
-| POST | `/hazards/photo` | multipart image + lon/lat → Gemini vision → hazard | Dev 2 (P2) |
+| POST | `/vehicles/{id}/position` | `{lon, lat, heading, speedMps}` | Yash |
+| POST | `/vehicles/{id}/safety` | `{state, lon, lat}` | Yash |
+| GET | `/vehicles` | → `[vehicle]` | Yash |
+| POST | `/roads/closures` | `{geometry, source}` → triggers re-plan | Yash |
+| GET | `/hazards` | → fire front, detections, deadlines | Yash |
+| POST | `/hazards/photo` | multipart image + lon/lat → Gemini vision → hazard | Yash (P2) |
 | POST | `/zones/{id}/status` | `{status, sourceUrl}` (TinyFish webhook) → starts dialing at `set` | Deep |
-| POST | `/sim/seed` | `?scenario=pocket-fire` → seeds 200 homes, 8 vehicles, 2 shelters | Dev 2 |
-| POST | `/sim/control` | `{standIns: {voice, drivers, approval}: bool}` | Dev 2 |
-| GET | `/system/metrics` | → latency p50/p95, honesty, accuracy, dispatch results (`data/sim-results.json` from Dev 2) | Deep |
+| POST | `/sim/seed` | `?scenario=pocket-fire` → seeds 200 homes, 8 vehicles, 2 shelters | Yash |
+| POST | `/sim/control` | `{standIns: {voice, drivers, approval}: bool}` | Yash |
+| GET | `/system/metrics` | → latency p50/p95, honesty, accuracy, dispatch results (`data/sim-results.json` from Yash) | Deep |
 | GET | `/health` | → `{ok, env, version, gitSha}` | Prem |
 
 ## 3. Live events (WebSocket `/live`)

@@ -1,4 +1,4 @@
-"""POST /sim/seed, POST /sim/control (Dev 2: D2-02). Everything from here is labeled SIM in the UI."""
+"""POST /sim/seed, POST /sim/control (Yash: D2-02). Everything from here is labeled SIM in the UI."""
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/sim", tags=["sim"])
 @router.post("/seed")
 async def seed(scenario: str = Query(default="pocket-fire")) -> dict:
     """Seeds ~200 homes, 8 vehicles, 2 shelters for the scenario."""
-    raise not_yet("D2-02", "Dev 2")
+    raise not_yet("D2-02", "Yash")
 
 
 class SimControl(BaseModel):
@@ -20,4 +20,4 @@ class SimControl(BaseModel):
 
 @router.post("/control")
 async def control(body: SimControl) -> dict:
-    raise not_yet("D2-02", "Dev 2")
+    raise not_yet("D2-02", "Yash")

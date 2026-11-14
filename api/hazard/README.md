@@ -1,4 +1,4 @@
-# api/hazard/ — fire model (Dev 2, D2-07)
+# api/hazard/ — fire model (Yash, D2-07)
 
 - `firms.py`: NASA FIRMS VIIRS NRT for the bbox, or replay `data/scenario.json`
 - `spread.py`: elliptical (Huygens) spread → `fireArrivalAt` per home → `deadlineAt = arrival − 10 min`

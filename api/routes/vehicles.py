@@ -1,4 +1,4 @@
-"""GET /vehicles, POST /vehicles/{id}/position, POST /vehicles/{id}/safety (Dev 2: D2-05, D2-08)."""
+"""GET /vehicles, POST /vehicles/{id}/position, POST /vehicles/{id}/safety (Yash: D2-05, D2-08)."""
 
 from typing import Any, Literal
 

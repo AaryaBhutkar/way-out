@@ -9,11 +9,11 @@ pnpm lint && pnpm typecheck && pnpm build
 | Path | Owner | Task |
 |---|---|---|
 | `/` kiosk | Deep | D1-08 |
-| `/console` | Dev 2 | D2-03 |
-| `/driver` (PWA) | Dev 2 | D2-05, D2-08 (`app/driver/safety.ts`) |
+| `/console` | Yash | D2-03 |
+| `/driver` (PWA) | Yash | D2-05, D2-08 (`app/driver/safety.ts`) |
 | `/calls` | Deep | D1-04 |
 | `/system` | Deep | D1-09 |
-| `/report` | Dev 2 | P2 |
+| `/report` | Yash | P2 |
 | `/drill` | Deep | D1-07 (plainly labeled, never styled as a county site) |
 
 - `lib/api.ts`: REST client for CONTRACT §2.

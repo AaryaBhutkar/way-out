@@ -1,4 +1,4 @@
-"""GET /hazards, POST /hazards/photo (Dev 2: D2-07, P2 photo reports)."""
+"""GET /hazards, POST /hazards/photo (Yash: D2-07, P2 photo reports)."""
 
 from fastapi import APIRouter
 
@@ -21,4 +21,4 @@ async def list_hazards() -> dict:
 @router.post("/photo")
 async def photo() -> dict:
     """multipart image + lon/lat → Gemini vision → hazard."""
-    raise not_yet("P2 photo reports", "Dev 2")
+    raise not_yet("P2 photo reports", "Yash")

@@ -1,4 +1,4 @@
-"""POST /plans/solve, GET /plans/latest (Dev 2: D2-04)."""
+"""POST /plans/solve, GET /plans/latest (Yash: D2-04)."""
 
 from typing import Literal
 
@@ -18,7 +18,7 @@ class SolveBody(BaseModel):
 @router.post("/solve")
 async def solve(body: SolveBody) -> dict:
     """Run api/dispatch/ once. Writes `plans` + `proposed` assignments."""
-    raise not_yet("D2-04", "Dev 2")
+    raise not_yet("D2-04", "Yash")
 
 
 @router.get("/latest")
