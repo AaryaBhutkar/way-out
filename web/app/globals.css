@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Dark, calm, night-time incident UI. Red means ONLY fire or a person who needs help. */
+@theme {
+  --color-bg: #0b0e13;
+  --color-panel: #12161d;
+  --color-line: #232a35;
+  --color-ink: #e6e9ef;
+  --color-muted: #8b95a5;
+
+  --color-fire: #ff4d3d;        /* fire + needs a ride */
+  --color-help: #f5a524;        /* can help a neighbor */
+  --color-out: #22c55e;         /* has left */
+  --color-unknown: #6b7280;     /* not reached yet */
+  --color-vehicle: #4da3ff;
+  --color-sim: #a78bfa;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}

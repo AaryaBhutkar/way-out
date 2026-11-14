@@ -1,0 +1,8 @@
+{
+  "name": "Way Out Driver",
+  "short_name": "Way Out",
+  "start_url": "/driver",
+  "display": "standalone",
+  "background_color": "#0b0e13",
+  "theme_color": "#0b0e13"
+}

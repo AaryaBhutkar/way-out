@@ -1,0 +1,51 @@
+"""Test setup. Uses an in-memory mock Mongo by default.
+
+Set MONGODB_TEST_URI (CI does) to run against a real MongoDB, which is what proves atomic accept.
+"""
+
+import os
+import uuid
+
+os.environ.setdefault("ENV", "test")
+os.environ["RUN_WORKERS"] = "false"
+os.environ["INTERNAL_TOKEN"] = "test-token"
+
+import pytest  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+
+from api.core import db as dbmod  # noqa: E402
+from api.core.config import get_settings  # noqa: E402
+
+get_settings.cache_clear()
+
+
+@pytest.fixture
+async def db():
+    uri = os.environ.get("MONGODB_TEST_URI")
+    if uri:
+        from motor.motor_asyncio import AsyncIOMotorClient
+
+        client = AsyncIOMotorClient(uri, tz_aware=True)
+        name = f"wayout_test_{uuid.uuid4().hex[:8]}"
+        database = client[name]
+    else:
+        from mongomock_motor import AsyncMongoMockClient
+
+        client = AsyncMongoMockClient(tz_aware=True)
+        name = None
+        database = client["wayout_test"]
+
+    await dbmod.ensure_indexes(database)
+    dbmod.set_db(database)
+    yield database
+    if name:
+        await client.drop_database(name)
+        client.close()
+
+
+@pytest.fixture
+async def client(db):
+    from api.main import create_app
+
+    async with AsyncClient(transport=ASGITransport(app=create_app()), base_url="http://test") as c:
+        yield c

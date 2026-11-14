@@ -1,0 +1,45 @@
+# Lives at /opt/wayout on the Vultr VM (copied there by .github/workflows/deploy.yml).
+# /opt/wayout/.env      → DOMAIN, API_IMAGE, DEV_TAG, STAGING_TAG, PROD_TAG   (deploy.sh updates the tags)
+# /opt/wayout/<env>.env → app secrets for that env (MONGODB_URI, GEMINI_API_KEY, ...). Never in git.
+name: wayout
+
+x-api: &api
+  restart: unless-stopped
+  expose: ["8000"]
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "3" }
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in /opt/wayout/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  api-dev:
+    <<: *api
+    image: ${API_IMAGE:-ghcr.io/yash-charde/wayout-api}:${DEV_TAG:-latest}
+    env_file: [./dev.env]
+    environment: { ENV: dev }
+
+  api-staging:
+    <<: *api
+    image: ${API_IMAGE:-ghcr.io/yash-charde/wayout-api}:${STAGING_TAG:-latest}
+    env_file: [./staging.env]
+    environment: { ENV: staging }
+
+  api-prod:
+    <<: *api
+    image: ${API_IMAGE:-ghcr.io/yash-charde/wayout-api}:${PROD_TAG:-latest}
+    env_file: [./prod.env]
+    environment: { ENV: prod }
+
+volumes:
+  caddy_data:
+  caddy_config:

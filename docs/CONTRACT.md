@@ -1,0 +1,184 @@
+# Way Out — Contract (shared)
+
+Everyone builds against this file. **Changing a field, an endpoint, or an event name?** Open a PR that edits this file first, label it `contract`, and tag the others. Keep old fields working until nothing reads them.
+
+Prem writes v1 by **2:00 PM Saturday**. After that, Deep and Dev 2 co-own it.
+
+---
+
+## 1. MongoDB collections
+
+DB name = `wayout_${ENV}` (`dev`, `staging`, `prod`). All geometry is GeoJSON. Index `location` with `2dsphere`.
+
+### `households`
+```jsonc
+{
+  "_id": "hh_...",
+  "address": "1225 N SR 89A, Sedona, AZ",
+  "location": { "type": "Point", "coordinates": [-111.73, 34.93] },
+  "zoneId": "zone_oak_creek_14",
+  "phone": "+1...",               // E.164; stand-ins use fake numbers
+  "language": "en",               // en | es
+  "simulated": true,              // stand-in vs real demo phone
+  "record": {                     // written ONLY by the agent (PATCH /households/{id}/record)
+    "canLeave": "yes|no|unsure",
+    "peopleCount": 2,
+    "mobility": "walks|walker|manual_wheelchair|power_wheelchair|bedbound",
+    "assistance": "none|one_person|two_person_lift",
+    "medical": ["oxygen"],        // oxygen | dialysis | other
+    "pets": true,
+    "hasCar": false,
+    "confidence": { "mobility": 0.9 }
+  },
+  "corrections": [ { "field": "peopleCount", "from": 1, "to": 2, "at": "..." } ],
+  "reach": "not_called|ringing|in_call|answered|retry_2|retry_5|texted|door_check|unreachable",
+  "role": "unknown|needs_ride|can_help|left|stay",   // drives map color
+  "fireArrivalAt": "ISO",         // hazard service
+  "deadlineAt": "ISO",            // fireArrivalAt - 10 min
+  "doorPriority": 0.0,
+  "updatedAt": "ISO"
+}
+```
+
+### `requests` (a ride request; status changes ONLY through `api/requests.py`)
+```jsonc
+{
+  "_id": "rq_...", "householdId": "hh_...",
+  "status": "received|approved|driver_accepted|en_route|arrived|closed|reassigning",
+  "need": { "seats": 2, "wheelchair": 1, "stretcher": 0, "crew": 2, "lift": true },
+  "deadlineAt": "ISO", "priority": 0.0,
+  "escalation": null,            // medical | flames | address_unconfirmed | unservable | language
+  "dupOf": null,                 // set by dedupe
+  "version": 3, "createdAt": "ISO", "updatedAt": "ISO"
+}
+```
+
+**Legal transitions** (anything else raises an error):
+```
+received ──approve──► approved ──driver accepts──► driver_accepted ──► en_route ──► arrived ──► closed
+   ▲                     │                                │
+   └ decline / expire / ─┘                 no route in time / driver cancels
+     replaced (silent: rider never heard)                 ▼
+                                             reassigning ──new accept──► driver_accepted
+```
+- Approval **never** triggers a callback. Only `driver_accepted`, `reassigning`, `en_route` (ETA change > 3 min), and `arrived` do.
+
+### `vehicles`
+```jsonc
+{
+  "_id": "vh_...", "kind": "agency_van|paratransit|neighbor",
+  "driverName": "Luis", "phone": "+1...",
+  "capacity": { "seats": 4, "wheelchair": 1, "stretcher": 0 }, "crew": 2, "lift": true,
+  "location": { "type": "Point", "coordinates": [...] }, "heading": 120, "speedMps": 12,
+  "status": "idle|offered|on_run|offline",
+  "safety": { "state": "ok|check|man_down|sos", "at": "ISO", "location": {...} },
+  "simulated": true, "lastSeenAt": "ISO"
+}
+```
+
+### `assignments` (offers)
+```jsonc
+{
+  "_id": "as_...", "requestId": "rq_...", "vehicleId": "vh_...",
+  "planVersion": 12, "stopOrder": 2, "etaMinutes": 7.4,
+  "status": "proposed|offered|accepted|declined|expired|replaced|revoked|completed",
+  "offeredAt": "ISO", "expiresAt": "ISO", "respondedAt": "ISO"
+}
+```
+- **Atomic accept:** `find_one_and_update({_id, status: "offered"}, {$set: {status: "accepted", ...}})`. If it returns `None`, respond `{"result": "changed"}`. Offers expire 2 min after `offeredAt`.
+- **Accepted runs are frozen.** New offers only go after a vehicle's last accepted stop.
+
+### `callbacks`
+`{ _id, requestId, assignmentId, announcedStatus, state: queued|placed|played|unanswered, key }`. `key = requestId:assignmentId:announcedStatus` has a **unique index**, so callbacks are idempotent.
+
+### `calls`
+`{ _id, householdId, direction: outbound|inbound|callback, cartesiaCallId, startedAt, endedAt, outcome: answered|no_answer|voicemail|failed, language, turns: [{speaker: agent|resident, text, at, latencyMs, requestStatus, guardBlocked}] }`
+
+### `hazards`
+`{ _id, kind: fire|flood|road_blocked, source: firms|spread|photo|manual|sim, geometry, detectedAt, confidence, photoUrl? }`
+
+### `zones`
+`{ _id, name, county, status: ready|set|go|clear, polygon, source: tinyfish|manual, sourceUrl, updatedAt }`
+
+### Also
+`shelters` (location, capacity), `roadClosures` (LineString, source, at), `auditLog` (kind, message, refs, at), `plans` (version, solver, solveMs, objective, changedOffers).
+
+### Tiger Data (Postgres / Timescale hypertables)
+`vehicle_positions(time, vehicle_id, lon, lat, speed)` · `fire_detections(time, lon, lat, frp, source)` · `call_turns(time, call_id, latency_ms, guard_blocked)` · `kpis(time, name, value)`
+
+---
+
+## 2. HTTP API (FastAPI, prefix none, JSON)
+
+Auth: dashboard and driver endpoints are open in demo mode. `/agent/*` and webhooks require `Authorization: Bearer $INTERNAL_TOKEN`.
+
+| Method | Path | Body → Response | Owner |
+|---|---|---|---|
+| POST | `/agent/start` | `{householdId, callType: outbound\|callback\|inbound, callId}` → `{say: [str], stage}` | Deep |
+| POST | `/agent/turn` | `{callId, householdId, text, language}` → `{say: [str], stage, done, record, requestStatus}` | Deep |
+| POST | `/calls/dial` | `{householdId}` → `{callId}` (real call via Cartesia, or stand-in) | Deep |
+| PATCH | `/households/{id}/record` | partial record → household | Deep |
+| GET | `/households?zoneId=` | → `[household]` | Prem |
+| GET | `/requests/open` | → `[request + household]` sorted by deadline | Prem |
+| POST | `/requests/{id}/escalate` | `{reason}` | Prem |
+| POST | `/plans/solve` | `{solver: greedy\|ortools}` → plan | Dev 2 |
+| GET | `/plans/latest` | → plan + proposed assignments | Dev 2 |
+| POST | `/assignments/{id}/approve` | → assignment | Prem (core) |
+| POST | `/assignments/{id}/accept` | → `{result: accepted\|changed}` | Prem (core) |
+| POST | `/assignments/{id}/decline` | → assignment | Prem (core) |
+| POST | `/assignments/{id}/cancel` | driver can't make it → revoke | Prem (core) |
+| POST | `/vehicles/{id}/position` | `{lon, lat, heading, speedMps}` | Dev 2 |
+| POST | `/vehicles/{id}/safety` | `{state, lon, lat}` | Dev 2 |
+| GET | `/vehicles` | → `[vehicle]` | Dev 2 |
+| POST | `/roads/closures` | `{geometry, source}` → triggers re-plan | Dev 2 |
+| GET | `/hazards` | → fire front, detections, deadlines | Dev 2 |
+| POST | `/hazards/photo` | multipart image + lon/lat → Gemini vision → hazard | Dev 2 (P2) |
+| POST | `/zones/{id}/status` | `{status, sourceUrl}` (TinyFish webhook) → starts dialing at `set` | Deep |
+| POST | `/sim/seed` | `?scenario=pocket-fire` → seeds 200 homes, 8 vehicles, 2 shelters | Dev 2 |
+| POST | `/sim/control` | `{standIns: {voice, drivers, approval}: bool}` | Dev 2 |
+| GET | `/system/metrics` | → latency p50/p95, honesty, accuracy, dispatch results (`data/sim-results.json` from Dev 2) | Deep |
+| GET | `/health` | → `{ok, env, version, gitSha}` | Prem |
+
+## 3. Live events (WebSocket `/live`)
+
+Server pushes `{type, data, at}`. Source: MongoDB change streams.
+
+| type | data |
+|---|---|
+| `household.updated` | household |
+| `request.updated` | request |
+| `assignment.updated` | assignment |
+| `vehicle.moved` | `{id, lon, lat, heading}` (throttle to ≤ 2/s per vehicle) |
+| `vehicle.updated` | vehicle (status, capacity, driver; anything except position/safety). *Added in v0.0 so the fleet list stays live.* |
+| `vehicle.safety` | `{id, state, lon, lat}` |
+| `call.turn` | `{callId, householdId, speaker, text, latencyMs}` |
+| `hazard.updated` | hazard |
+| `plan.updated` | plan summary |
+| `zone.updated` | zone |
+
+## 4. What the agent may say, by request status (code enforces this)
+
+| Status | Agent says (template) | Never |
+|---|---|---|
+| none / `received` / `approved` | "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911." | Any promise, ETA, "don't worry" |
+| `driver_accepted` | "A {vehicle} with {crew} is {eta} minutes away. The driver's name is {name}. I'll call again if anything changes." | An ETA the AI made up |
+| `en_route` | "{name} is about {eta} minutes away." | "Stay put no matter what" |
+| `reassigning` | "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now." | The old ETA. Silence |
+| `arrived`/`closed` | "Your driver has arrived." / shelter name | Anything about other residents |
+
+The AI writes only a short acknowledgment (≤ 6 words). `api/agent/honesty.py` drops it if it sounds like a promise while no driver has accepted, or if it contains any digits.
+
+## 5. Interpreter output (Gemini JSON schema)
+
+```jsonc
+{
+  "set": ["peopleCount=2", "mobility=power_wheelchair"],   // field=value changes from THIS utterance
+  "guessed": ["mobility"],
+  "answer": "yes|no|unclear",
+  "emergency": "medical|flames",
+  "flags": ["asks_ride","goodbye","asks_repeat","wants_time","not_to_agent","asks_what_to_do"],
+  "neighbors": ["the house across the street, she uses a walker"],
+  "language": "es",
+  "ack": "Thanks, a power chair."
+}
+```
