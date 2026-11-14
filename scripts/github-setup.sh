@@ -18,7 +18,7 @@ gh api -X PATCH "repos/$REPO" -f default_branch=develop -F delete_branch_on_merg
 echo "default branch → develop, squash merges only"
 
 protect() {  # branch, required approvals
-  gh api -X PUT "repos/$REPO/branches/$1/protection" --input - >/dev/null <<JSON
+  if gh api -X PUT "repos/$REPO/branches/$1/protection" --input - >/dev/null 2>&1 <<JSON
 {
   "required_status_checks": {"strict": false, "contexts": ["api", "web"]},
   "enforce_admins": false,
@@ -28,14 +28,18 @@ protect() {  # branch, required approvals
   "allow_deletions": false
 }
 JSON
-  echo "protected $1 (PR + CI, $2 approval(s))"
+  then echo "protected $1 (PR + CI, $2 approval(s))"
+  else echo "WARN: could not protect $1 (private repos on GitHub Free can't use branch protection;"
+       echo "      make the repo public or upgrade, then re-run). Continuing."
+  fi
 }
 protect develop 0
 protect staging 0
 protect main 1
 
 for e in dev staging production; do
-  gh api -X PUT "repos/$REPO/environments/$e" >/dev/null && echo "environment $e"
+  if gh api -X PUT "repos/$REPO/environments/$e" >/dev/null 2>&1; then echo "environment $e"
+  else echo "WARN: could not create environment $e (needs a public repo or a paid plan). Continuing."; fi
 done
 
 label() { gh label create "$1" --color "$2" --description "$3" -R "$REPO" 2>/dev/null || true; }
@@ -50,7 +54,7 @@ existing="$(gh issue list -R "$REPO" --state all --limit 500 --json title -q '.[
 for f in docs/team/*.md; do
   who="$(basename "$f" .md)"
   # Rows look like: | **D1-03** | 2:30–4:00 | **Interpreter + honesty.** ... |
-  grep -E '^\| \*\*[A-Z0-9]+-[0-9]+\*\* \|' "$f" | while IFS= read -r row; do
+  { grep -E '^\| \*\*[A-Z0-9]+-[0-9]+\*\* \|' "$f" || true; } | while IFS= read -r row; do
     id="$(sed -E 's/^\| \*\*([A-Z0-9]+-[0-9]+)\*\*.*/\1/' <<<"$row")"
     when="$(awk -F'|' '{gsub(/^ +| +$/,"",$3); print $3}' <<<"$row")"
     task="$(awk -F'|' '{gsub(/^ +| +$/,"",$4); print $4}' <<<"$row")"
