@@ -56,4 +56,64 @@ export const api = {
     call<{ ok: true }>("POST", `/vehicles/${id}/safety`, s),
   closeRoad: (coordinates: [number, number][], source: "manual" | "hazard" | "sim" = "manual") =>
     call<Doc>("POST", "/roads/closures", { geometry: { type: "LineString", coordinates }, source }),
+  // call floor (D1-04)
+  calls: (limit = 100) => call<CallSummary[]>("GET", `/calls?limit=${limit}`),
+  call: (id: string) => call<CallDetail>("GET", `/calls/${encodeURIComponent(id)}`),
+};
+
+export type HouseholdRecord = {
+  canLeave?: "yes" | "no" | "unsure";
+  peopleCount?: number;
+  mobility?: "walks" | "walker" | "manual_wheelchair" | "power_wheelchair" | "bedbound";
+  assistance?: "none" | "one_person" | "two_person_lift";
+  medical?: ("oxygen" | "dialysis" | "other")[];
+  pets?: boolean;
+  hasCar?: boolean;
+  confidence?: Record<string, number>;
+};
+
+export type CallTurn = {
+  speaker: "agent" | "resident";
+  text: string;
+  at: string;
+  latencyMs?: number | null;
+  interpreterMs?: number | null;
+  interpreter?: string;
+  fallback?: boolean;
+  requestStatus?: string | null;
+  guardBlocked?: boolean;
+  stage?: string;
+};
+
+export type CallSummary = {
+  id: string;
+  householdId: string;
+  direction: "outbound" | "inbound" | "callback";
+  language: "en" | "es";
+  startedAt: string;
+  endedAt?: string | null;
+  updatedAt?: string | null;
+  outcome?: string | null;
+  stage?: string | null;
+  done: boolean;
+  escalations: string[];
+  turnCount: number;
+  lastText?: string | null;
+  lastSpeaker?: string | null;
+  household: {
+    id: string;
+    address: string;
+    simulated: boolean;
+    reach?: string;
+    role?: string;
+    record?: HouseholdRecord;
+    corrections?: { field: string; from: unknown; to: unknown; at: string }[];
+    language?: string;
+    zoneId?: string;
+  } | null;
+};
+
+export type CallDetail = CallSummary & {
+  turns: CallTurn[];
+  request: (Doc & { status: string; escalation?: string | null; need?: Record<string, unknown> }) | null;
 };
