@@ -9,8 +9,8 @@ can see where you are on `develop` after each merge.
 |---|---|---|---|---|---|
 | P-01 | 11:10–11:30 | Create repo `wayout`, push all docs, create `develop` + `staging`… | `feat/P-01-create-repo-wayout-push-all-docs` | ✅ done (Yash): repo public, 3 branches, 41 issues, labels; setup script ran | |
 | P-02 | 11:30–12:15 | API skeleton | `feat/P-02-api-skeleton` | ✅ done (v0.0) | |
-| P-03 | 12:15–1:15 | Core rules | `feat/P-03-core-rules` | ✅ done (v0.0) + follow-ups on `feat/P-03-contract-followups`: `/assignments/{id}/progress`, en_route ETA callbacks, `/requests/{id}/close` (94 tests, green on a real Mongo replica set) | to open |
-| P-04 | 1:15–1:50 | Three environments | `feat/P-04-deploy-fixes` | 🟡 code ready (fixed lowercase GHCR image bug, VM bootstrap, smoke + release scripts). ⛔ needs accounts: Atlas, Vultr VM, DNS, 3 repo secrets, Vercel (checklist in `infra/README.md`) | to open |
+| P-03 | 12:15–1:15 | Core rules | `feat/P-03-core-rules` | ✅ done (v0.0) + follow-ups on `feat/P-03-contract-followups`: `/assignments/{id}/progress`, en_route ETA callbacks, `/requests/{id}/close` (94 tests, green on a real Mongo replica set) | #44 merged |
+| P-04 | 1:15–1:50 | Three environments | `feat/P-04-deploy-fixes` | 🟡 code ready (fixed lowercase GHCR image bug, VM bootstrap, smoke + release scripts). ⛔ needs accounts: Atlas, Vultr VM, DNS, 3 repo secrets, Vercel (checklist in `infra/README.md`) | #45 merged |
 | P-05 | 1:50–2:00 | Handoff | `feat/P-05-handoff` | 🟡 `docs/team/handoff.md` done, open questions answered; tag `v0.0` after first deploy | |
 | P-10 | 1:00–1:45 | Pull `develop`. Run the **full demo flow on staging** end to end with… | `feat/P-10-pull-develop-run-the-full-demo-f` | ⬜ todo | |
 | P-11 | 1:45–4:30 | Bug-bash lead: triage, review and merge `fix/*` PRs, keep `develop`… | `feat/P-11-bug-bash-lead-triage-review-and` | ⬜ todo | |
@@ -29,8 +29,8 @@ can see where you are on `develop` after each merge.
 
 ## Notes
 
-- **2:55 PM Sat:** Claude can read but not push (`403`). Yash: install the Claude GitHub App on the repo
-  (https://github.com/apps/claude/installations/select_target) so these branches can be pushed directly.
+- **3:35 PM Sat:** #44 and #45 merged to develop (CI green, 451 tests). Deploy builds the image; it fails at the
+  VM copy step until the `VULTR_*` secrets and the VM exist (P-04 accounts).
 - New core endpoints for teammates: `POST /assignments/{id}/progress` (Yash, D2-05 driver app + stand-in drivers),
   `POST /requests/{id}/close` (Deep, when a resident says they already left; dedupe). See `docs/team/handoff.md`.
 - `scripts/smoke.py --domain <d>` checks all three envs; `--flow` drives one ride end to end (P-10).
