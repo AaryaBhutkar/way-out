@@ -161,12 +161,13 @@ Server pushes `{type, data, at}`. Source: MongoDB change streams.
 | Status | Agent says (template) | Never |
 |---|---|---|
 | none / `received` / `approved` | "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911." | Any promise, ETA, "don't worry" |
+| none, *before we know they need a ride* (added D1-02) | "No driver is assigned to you. I need a few answers first to put you on the rescue list." (If they said they can leave: "You told me you can leave on your own, so no driver is assigned to you.") | Saying they're on the list when no request exists |
 | `driver_accepted` | "A {vehicle} with {crew} is {eta} minutes away. The driver's name is {name}. I'll call again if anything changes." | An ETA the AI made up |
 | `en_route` | "{name} is about {eta} minutes away." | "Stay put no matter what" |
 | `reassigning` | "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now." | The old ETA. Silence |
 | `arrived`/`closed` | "Your driver has arrived." / shelter name | Anything about other residents |
 
-The AI writes only a short acknowledgment (≤ 6 words). `api/agent/honesty.py` drops it if it sounds like a promise while no driver has accepted, or if it contains any digits.
+The AI writes only a short acknowledgment (≤ 6 words). `api/agent/honesty.py` drops it if it sounds like a promise while no driver has accepted, or if it contains any digits. It also always drops timing words ("soon", "minutes"), comfort ("you're safe") and advice ("stay put"), since those belong to templates.
 
 ## 5. Interpreter output (Gemini JSON schema)
 
@@ -176,9 +177,11 @@ The AI writes only a short acknowledgment (≤ 6 words). `api/agent/honesty.py` 
   "guessed": ["mobility"],
   "answer": "yes|no|unclear",
   "emergency": "medical|flames",
-  "flags": ["asks_ride","goodbye","asks_repeat","wants_time","not_to_agent","asks_what_to_do"],
+  "flags": ["asks_ride","goodbye","asks_repeat","wants_time","not_to_agent","asks_what_to_do","asks_why"],  // asks_why added D1-03
   "neighbors": ["the house across the street, she uses a walker"],
   "language": "es",
   "ack": "Thanks, a power chair."
 }
 ```
+- `mobility=wheelchair` is allowed in interpreter output when the kind of chair isn't said yet. It is never stored: the agent asks "manual or power?" and writes `manual_wheelchair` / `power_wheelchair` (D1-02).
+- `medical=none` means "no medical needs" and is stored as `medical: []`.

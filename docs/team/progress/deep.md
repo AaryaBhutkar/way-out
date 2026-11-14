@@ -8,9 +8,9 @@ can see where you are on `develop` after each merge.
 | ID | When | Task | Task branch | Status | PR |
 |---|---|---|---|---|---|
 | D1-01 | 11:10–12:30 | Cartesia hello-world → thin client | `feat/D1-01-cartesia-hello-world-thin-client` | ⬜ todo | |
-| D1-02 | 12:30–2:30 | State machine + templates | `feat/D1-02-state-machine-templates` | ⬜ todo | |
-| D1-03 | 2:30–4:00 | Interpreter + honesty | `feat/D1-03-interpreter-honesty` | ⬜ todo | |
-| D1-04 | 4:00–5:45 | Record → request | `feat/D1-04-record-request` | ⬜ todo | |
+| D1-02 | 12:30–2:30 | State machine + templates | `feat/deep` | ✅ done | |
+| D1-03 | 2:30–4:00 | Interpreter + honesty | `feat/deep` | 🟡 code + tests done; needs a live Gemini/Claude key check | |
+| D1-04 | 4:00–5:45 | Record → request | `feat/deep` | 🟡 backend done (record PATCH, corrections, need, request upsert, escalation, turn logs); `/calls` page todo | |
 | D1-05 | 6:00–8:00 | Dialer + reach ladder | `feat/D1-05-dialer-reach-ladder` | ⬜ todo | |
 | D1-06 | 8:00–10:00 | Callbacks + live status | `feat/D1-06-callbacks-live-status` | ⬜ todo | |
 | D1-07 | 10:00–11:15 | TinyFish SET trigger | `feat/D1-07-tinyfish-set-trigger` | ⬜ todo | |
@@ -27,4 +27,8 @@ can see where you are on `develop` after each merge.
 
 ## Notes
 
--
+- Try it: `uv run --project api python -m api.agent.chat -v` (no DB or keys needed).
+- Contract additions (in `docs/CONTRACT.md`): a §4 line for "no request yet", the `asks_why` flag, and
+  `mobility=wheelchair` / `medical=none` in interpreter output.
+- Honesty guard also blocks timing words, comfort and advice at every status, not only before accept.
+- A household that can leave with a car gets `role: left` (green). Tell Yash if the console wants a different role.
