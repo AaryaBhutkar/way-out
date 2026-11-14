@@ -289,6 +289,34 @@ async def test_callback_call_speaks_status(client, db):
     assert out["done"]
 
 
+async def test_call_floor_reads(client, db):
+    hh = await make_household(db)
+    call = Call(client, hh["_id"], "call_floor")
+    await call.start()
+    await call.say("yes")
+    await call.say("no")
+    rows = (await client.get("/calls")).json()
+    assert rows[0]["id"] == "call_floor" and rows[0]["stage"] == "household"
+    assert rows[0]["household"]["address"] == hh["address"] and rows[0]["turnCount"] == 5
+    one = (await client.get("/calls/call_floor")).json()
+    assert [t["speaker"] for t in one["turns"]] == ["agent", "resident", "agent", "resident", "agent"]
+    assert one["request"]["status"] == "received" and one["turns"][-1]["requestStatus"] == "received"
+    assert (await client.get("/calls/nope")).status_code == 404
+
+
+def test_call_turn_event_carries_status():
+    from api.live import LiveHub, events_for_change
+
+    turn = {"speaker": "agent", "text": "Hi", "latencyMs": 12.0, "requestStatus": "received", "at": "t"}
+    change = {
+        "operationType": "update",
+        "fullDocument": {"_id": "c1", "householdId": "h1", "turns": [turn]},
+        "updateDescription": {"updatedFields": {"turns.0": turn}},
+    }
+    ((kind, data),) = events_for_change("calls", change, LiveHub())
+    assert kind == "call.turn" and data["requestStatus"] == "received" and data["guardBlocked"] is False
+
+
 # ── interpreter fallback ──────────────────────────────────────────────────────
 
 

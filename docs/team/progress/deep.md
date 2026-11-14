@@ -10,7 +10,7 @@ can see where you are on `develop` after each merge.
 | D1-01 | 11:10–12:30 | Cartesia hello-world → thin client | `feat/D1-01-cartesia-hello-world-thin-client` | ⬜ todo | |
 | D1-02 | 12:30–2:30 | State machine + templates | `feat/deep` | ✅ done | |
 | D1-03 | 2:30–4:00 | Interpreter + honesty | `feat/deep` | 🟡 code + tests done; needs a live Gemini/Claude key check | |
-| D1-04 | 4:00–5:45 | Record → request | `feat/deep` | 🟡 backend done (record PATCH, corrections, need, request upsert, escalation, turn logs); `/calls` page todo | |
+| D1-04 | 4:00–5:45 | Record → request | `feat/deep` | 🟡 backend + `/calls` page done; M1 check (real call → map) waits on D1-01 | |
 | D1-05 | 6:00–8:00 | Dialer + reach ladder | `feat/D1-05-dialer-reach-ladder` | ⬜ todo | |
 | D1-06 | 8:00–10:00 | Callbacks + live status | `feat/D1-06-callbacks-live-status` | ⬜ todo | |
 | D1-07 | 10:00–11:15 | TinyFish SET trigger | `feat/D1-07-tinyfish-set-trigger` | ⬜ todo | |

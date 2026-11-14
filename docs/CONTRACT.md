@@ -117,6 +117,8 @@ Auth: dashboard and driver endpoints are open in demo mode. `/agent/*` and webho
 | POST | `/agent/start` | `{householdId, callType: outbound\|callback\|inbound, callId}` → `{say: [str], stage}` | Deep |
 | POST | `/agent/turn` | `{callId, householdId, text, language}` → `{say: [str], stage, done, record, requestStatus}` | Deep |
 | POST | `/calls/dial` | `{householdId}` → `{callId}` (real call via Cartesia, or stand-in) | Deep |
+| GET | `/calls?limit=` | → `[call summary + household]`, most recently active first (added D1-04) | Deep |
+| GET | `/calls/{id}` | → call summary + `turns` + open `request` (added D1-04) | Deep |
 | PATCH | `/households/{id}/record` | partial record → household | Deep |
 | GET | `/households?zoneId=` | → `[household]` | Prem |
 | GET | `/requests/open` | → `[request + household]` sorted by deadline | Prem |
@@ -151,7 +153,7 @@ Server pushes `{type, data, at}`. Source: MongoDB change streams.
 | `vehicle.moved` | `{id, lon, lat, heading}` (throttle to ≤ 2/s per vehicle) |
 | `vehicle.updated` | vehicle (status, capacity, driver; anything except position/safety). *Added in v0.0 so the fleet list stays live.* |
 | `vehicle.safety` | `{id, state, lon, lat}` |
-| `call.turn` | `{callId, householdId, speaker, text, latencyMs}` |
+| `call.turn` | `{callId, householdId, speaker, text, latencyMs, requestStatus, guardBlocked, stage, at}` (last four added D1-04) |
 | `hazard.updated` | hazard |
 | `plan.updated` | plan summary |
 | `zone.updated` | zone |

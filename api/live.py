@@ -116,6 +116,11 @@ def events_for_change(coll: str, change: dict[str, Any], hub_: LiveHub = hub) ->
                         "speaker": t.get("speaker"),
                         "text": t.get("text"),
                         "latencyMs": t.get("latencyMs"),
+                        # added D1-04 for the call floor (additive)
+                        "requestStatus": t.get("requestStatus"),
+                        "guardBlocked": t.get("guardBlocked", False),
+                        "stage": t.get("stage"),
+                        "at": t.get("at"),
                     },
                 )
             ]

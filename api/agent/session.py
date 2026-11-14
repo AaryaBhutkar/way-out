@@ -51,9 +51,7 @@ async def ride_info(db: AsyncIOMotorDatabase, request: dict[str, Any] | None) ->
 
 
 async def _push_turn(db: AsyncIOMotorDatabase, call_id: str, turn: dict[str, Any], **set_: Any) -> None:
-    update: dict[str, Any] = {"$push": {"turns": turn}}
-    if set_:
-        update["$set"] = set_
+    update: dict[str, Any] = {"$push": {"turns": turn}, "$set": {"updatedAt": turn["at"], **set_}}
     await db.calls.update_one({"_id": call_id}, update)
 
 
