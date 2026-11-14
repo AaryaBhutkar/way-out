@@ -65,8 +65,9 @@ async def test_zone_status_webhook(client, db):
 
 
 async def test_stubs_say_who_owns_them(client):
-    res = await client.post("/agent/turn", headers=AUTH, json={"callId": "c", "householdId": "h", "text": "hi"})
-    assert res.status_code == 501 and "D1-02" in res.json()["detail"]
+    # /agent/turn is built now (D1-02); /calls/dial is still a stub until D1-05.
+    res = await client.post("/calls/dial", headers=AUTH, json={"householdId": "h"})
+    assert res.status_code == 501 and "D1-05" in res.json()["detail"]
 
 
 def test_live_event_mapping():

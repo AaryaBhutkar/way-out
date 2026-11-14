@@ -1,0 +1,34 @@
+# Deep: progress
+
+**Role:** resident side: voice, interpreter, honesty, calls, evals · **Task file:** [`docs/team/deep.md`](../deep.md) · **Your branch:** `feat/deep`
+
+Update this table as you go (⬜ todo · 🟡 in progress · ✅ done · ⛔ blocked). Commit it with your work so the team
+can see where you are on `develop` after each merge.
+
+| ID | When | Task | Task branch | Status | PR |
+|---|---|---|---|---|---|
+| D1-01 | 11:10–12:30 | Cartesia hello-world → thin client | `feat/D1-01-cartesia-hello-world-thin-client` | ⬜ todo | |
+| D1-02 | 12:30–2:30 | State machine + templates | `feat/deep` | ✅ done | |
+| D1-03 | 2:30–4:00 | Interpreter + honesty | `feat/deep` | 🟡 code + tests done; needs a live Gemini/Claude key check | |
+| D1-04 | 4:00–5:45 | Record → request | `feat/deep` | 🟡 backend done (record PATCH, corrections, need, request upsert, escalation, turn logs); `/calls` page todo | |
+| D1-05 | 6:00–8:00 | Dialer + reach ladder | `feat/D1-05-dialer-reach-ladder` | ⬜ todo | |
+| D1-06 | 8:00–10:00 | Callbacks + live status | `feat/D1-06-callbacks-live-status` | ⬜ todo | |
+| D1-07 | 10:00–11:15 | TinyFish SET trigger | `feat/D1-07-tinyfish-set-trigger` | ⬜ todo | |
+| D1-08 | 11:15–12:15 | Dedupe + kiosk | `feat/D1-08-dedupe-kiosk` | ⬜ todo | |
+| D1-09 | 12:15–1:00 | Evals + /system | `feat/D1-09-evals-system` | ⬜ todo | |
+
+## How to work
+
+- `feat/deep` is your home branch, cut from `develop`. For each task you can work here, or cut a task branch
+  (`feat/<ID>-<slug>`, names above) from `develop` and open a PR back into `develop`. Small PRs merge faster.
+- Keep in sync: `git fetch origin && git rebase origin/develop` before you open a PR.
+- Rules: [`AGENTS.md`](../../../AGENTS.md) · flow: [`CONTRIBUTING.md`](../../../CONTRIBUTING.md) · shared shapes: [`docs/CONTRACT.md`](../../CONTRACT.md).
+- Blocked more than 20 minutes → post in team chat with the task ID.
+
+## Notes
+
+- Try it: `uv run --project api python -m api.agent.chat -v` (no DB or keys needed).
+- Contract additions (in `docs/CONTRACT.md`): a §4 line for "no request yet", the `asks_why` flag, and
+  `mobility=wheelchair` / `medical=none` in interpreter output.
+- Honesty guard also blocks timing words, comfort and advice at every status, not only before accept.
+- A household that can leave with a car gets `role: left` (green). Tell Yash if the console wants a different role.

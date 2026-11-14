@@ -9,7 +9,12 @@
 | `dialer.py` | D1-05 | Priority queue at SET, 1 call/s, reach ladder |
 | `callbacks.py` | D1-06 | Worker: `callbacks` with `state: queued` → place call → `played` / `unanswered` |
 | `dedupe.py` | D1-08 | Gemini embeddings + Atlas Vector Search + 50 m rule |
-| `chat.py` | D1-02 | Text CLI: `uv run --project api python -m api.agent.chat` (from repo root) |
+| `session.py` | D1-02/04 | DB side of a call: loads/saves call state on `calls.agent`, PATCHes the record, syncs the request, logs turns |
+| `chat.py` | D1-02 | Text CLI: `uv run --project api python -m api.agent.chat` (from repo root). In-memory DB by default; `--url` to hit a running API; `-v` shows stage/status/record |
+
+Status: `flow.py`, `templates.py`, `interpreter.py`, `honesty.py`, `session.py`, `chat.py` are built.
+Without `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` the interpreter falls back to a rule-based parser, so
+the CLI and tests work offline.
 
 Use the core helpers, don't reimplement them:
 - `api.requests.upsert_for_household()` to create/update a ride request
