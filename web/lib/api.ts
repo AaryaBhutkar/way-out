@@ -43,6 +43,12 @@ export const api = {
   ),
   decline: (id: string) => call<Doc>("POST", `/assignments/${id}/decline`),
   cancel: (id: string) => call<Doc>("POST", `/assignments/${id}/cancel`),
+  /** en_route (+etaMinutes, repeat to update) → arrived ("Picked up") → completed (at shelter). */
+  progress: (id: string, status: "en_route" | "arrived" | "completed", etaMinutes?: number) =>
+    call<Doc>("POST", `/assignments/${id}/progress`, { status, etaMinutes }),
+  /** No ride needed any more (resident left, duplicate). Withdraws offers; no resident callback. */
+  closeRequest: (id: string, reason: "resident_left" | "duplicate" | "dispatcher") =>
+    call<Doc>("POST", `/requests/${id}/close`, { reason }),
 
   position: (id: string, p: { lon: number; lat: number; heading?: number; speedMps?: number }) =>
     call<{ ok: true }>("POST", `/vehicles/${id}/position`, p),
@@ -50,10 +56,29 @@ export const api = {
     call<{ ok: true }>("POST", `/vehicles/${id}/safety`, s),
   closeRoad: (coordinates: [number, number][], source: "manual" | "hazard" | "sim" = "manual") =>
     call<Doc>("POST", "/roads/closures", { geometry: { type: "LineString", coordinates }, source }),
+  // simulation + dispatch (Yash, D2-02 / D2-04). Everything from /sim is simulated.
+  seed: (opts: { homes?: number; census?: "none" | "instant"; seed?: number } = {}) =>
+    call<Record<string, unknown>>(
+      "POST",
+      `/sim/seed?${new URLSearchParams(Object.entries(opts).map(([k, v]) => [k, String(v)])).toString()}`,
+    ),
+  census: () => call<{ requests: number }>("POST", "/sim/census"),
+  simControl: (standIns?: Partial<StandIns>) =>
+    standIns
+      ? call<{ standIns: StandIns }>("POST", "/sim/control", { standIns })
+      : call<{ standIns: StandIns }>("GET", "/sim/control"),
+  solve: (solver: "greedy" | "ortools" = "greedy") =>
+    call<{ version: number | null; proposals: number; unservable: number; solveMs: number }>(
+      "POST",
+      "/plans/solve",
+      { solver },
+    ),
   // call floor (D1-04)
   calls: (limit = 100) => call<CallSummary[]>("GET", `/calls?limit=${limit}`),
   call: (id: string) => call<CallDetail>("GET", `/calls/${encodeURIComponent(id)}`),
 };
+
+export type StandIns = { voice: boolean; drivers: boolean; approval: boolean };
 
 export type HouseholdRecord = {
   canLeave?: "yes" | "no" | "unsure";

@@ -20,6 +20,7 @@ DB name = `wayout_${ENV}` (`dev`, `staging`, `prod`). All geometry is GeoJSON. I
   "phone": "+1...",               // E.164; stand-ins use fake numbers
   "language": "en",               // en | es
   "simulated": true,              // stand-in vs real demo phone
+  "personaId": "p01",             // simulated homes only: data/personas.json script + truth (added D2-02)
   "record": {                     // written ONLY by the agent (PATCH /households/{id}/record)
     "canLeave": "yes|no|unsure",
     "peopleCount": 2,
@@ -61,7 +62,10 @@ received ──approve──► approved ──driver accepts──► driver_ac
      replaced (silent: rider never heard)                 ▼
                                              reassigning ──new accept──► driver_accepted
 ```
-- Approval **never** triggers a callback. Only `driver_accepted`, `reassigning`, `en_route` (ETA change > 3 min), and `arrived` do.
+- Also legal: `driver_accepted → arrived` (driver reaches the door without an `en_route` report).
+- **Any open status → `closed`** when no ride is needed any more (resident left on their own, duplicate, dispatcher). Only `POST /requests/{id}/close` takes this exit: it replaces live offers silently and revokes an accepted pickup (the rest of that driver's run stays). The resident is not called. *Added after v0.0 (handoff question 2).*
+- Approval **never** triggers a callback. Only `driver_accepted`, `reassigning`, `en_route` (first report, then each ETA change > 3 min), and `arrived` do.
+- Ride progress after accept goes through `POST /assignments/{id}/progress`: `en_route` (+`etaMinutes`, repeat to update) → `arrived` ("Picked up") → `completed` (dropped at shelter: request `closed`, assignment `completed`, no callback).
 
 ### `vehicles`
 ```jsonc
@@ -82,14 +86,18 @@ received ──approve──► approved ──driver accepts──► driver_ac
   "_id": "as_...", "requestId": "rq_...", "vehicleId": "vh_...",
   "planVersion": 12, "stopOrder": 2, "etaMinutes": 7.4,
   "status": "proposed|offered|accepted|declined|expired|replaced|revoked|completed",
-  "offeredAt": "ISO", "expiresAt": "ISO", "respondedAt": "ISO"
+  "offeredAt": "ISO", "expiresAt": "ISO", "respondedAt": "ISO",
+  "announcedEtaMinutes": 7.0,    // last ETA the resident was told (en_route)
+  "announcedEtaSeq": 1,          // en_route announcements so far
+  "completedAt": "ISO",
+  "late": false                  // solver: no vehicle makes the deadline; still offered (added D2-04)
 }
 ```
 - **Atomic accept:** `find_one_and_update({_id, status: "offered"}, {$set: {status: "accepted", ...}})`. If it returns `None`, respond `{"result": "changed"}`. Offers expire 2 min after `offeredAt`.
 - **Accepted runs are frozen.** New offers only go after a vehicle's last accepted stop.
 
 ### `callbacks`
-`{ _id, requestId, assignmentId, announcedStatus, state: queued|placed|played|unanswered, key }`. `key = requestId:assignmentId:announcedStatus` has a **unique index**, so callbacks are idempotent.
+`{ _id, requestId, assignmentId, announcedStatus, etaMinutes, state: queued|placed|played|unanswered, key }`. `key = requestId:assignmentId:announcedStatus` has a **unique index**, so callbacks are idempotent. For `en_route` only, the key ends with the announcement number (`...:en_route:<announcedEtaSeq>`) so each ETA change > 3 min gets its own callback. A counter, not the ETA minute: an ETA going 10 → 14 → 10 would collide with its own first key. `etaMinutes` is the ETA that triggered it; the worker reads the live ETA from the assignment when it dials. *Added after v0.0 (handoff question 1).*
 
 ### `calls`
 `{ _id, householdId, direction: outbound|inbound|callback, cartesiaCallId, startedAt, endedAt, outcome: answered|no_answer|voicemail|failed, language, turns: [{speaker: agent|resident, text, at, latencyMs, requestStatus, guardBlocked}] }`
@@ -101,7 +109,7 @@ received ──approve──► approved ──driver accepts──► driver_ac
 `{ _id, name, county, status: ready|set|go|clear, polygon, source: tinyfish|manual, sourceUrl, updatedAt }`
 
 ### Also
-`shelters` (location, capacity), `roadClosures` (LineString, source, at), `auditLog` (kind, message, refs, at), `plans` (version, solver, solveMs, objective, changedOffers).
+`shelters` (location, capacity), `roadClosures` (LineString, source, at), `auditLog` (kind, message, refs, at), `plans` (version, solver, solveMs, objective, changedOffers; D2-04 adds proposals, unservable, unreachableCommitted, requested), `simControl` (one doc `_id: "sim"`, `standIns: {voice, drivers, approval}`; added D2-02).
 
 ### Tiger Data (Postgres / Timescale hypertables)
 `vehicle_positions(time, vehicle_id, lon, lat, speed)` · `fire_detections(time, lon, lat, frp, source)` · `call_turns(time, call_id, latency_ms, guard_blocked)` · `kpis(time, name, value)`
@@ -123,12 +131,14 @@ Auth: dashboard and driver endpoints are open in demo mode. `/agent/*` and webho
 | GET | `/households?zoneId=` | → `[household]` | Prem |
 | GET | `/requests/open` | → `[request + household]` sorted by deadline | Prem |
 | POST | `/requests/{id}/escalate` | `{reason}` | Prem |
+| POST | `/requests/{id}/close` | `{reason: resident_left\|duplicate\|dispatcher}` → request (closed). No callback | Prem (core) |
 | POST | `/plans/solve` | `{solver: greedy\|ortools}` → plan | Yash |
-| GET | `/plans/latest` | → plan + proposed assignments | Yash |
+| GET | `/plans/latest` | → newest plan + every live `proposed`/`offered` assignment (any version), by ETA | Yash |
 | POST | `/assignments/{id}/approve` | → assignment | Prem (core) |
 | POST | `/assignments/{id}/accept` | → `{result: accepted\|changed}` | Prem (core) |
 | POST | `/assignments/{id}/decline` | → assignment | Prem (core) |
 | POST | `/assignments/{id}/cancel` | driver can't make it → revoke | Prem (core) |
+| POST | `/assignments/{id}/progress` | `{status: en_route\|arrived\|completed, etaMinutes?}` → assignment. Driver app + stand-in drivers | Prem (core) |
 | POST | `/vehicles/{id}/position` | `{lon, lat, heading, speedMps}` | Yash |
 | POST | `/vehicles/{id}/safety` | `{state, lon, lat}` | Yash |
 | GET | `/vehicles` | → `[vehicle]` | Yash |
@@ -136,8 +146,9 @@ Auth: dashboard and driver endpoints are open in demo mode. `/agent/*` and webho
 | GET | `/hazards` | → fire front, detections, deadlines | Yash |
 | POST | `/hazards/photo` | multipart image + lon/lat → Gemini vision → hazard | Yash (P2) |
 | POST | `/zones/{id}/status` | `{status, sourceUrl}` (TinyFish webhook) → starts dialing at `set` | Deep |
-| POST | `/sim/seed` | `?scenario=pocket-fire` → seeds 200 homes, 8 vehicles, 2 shelters | Yash |
-| POST | `/sim/control` | `{standIns: {voice, drivers, approval}: bool}` | Yash |
+| POST | `/sim/seed` | `?scenario=pocket-fire&homes=200&seed=42&census=none\|instant&firstArrivalMin=90` → replaces the simulated world: 200 homes, 8 vehicles, 2 shelters, 2 zones. Real households stay | Yash |
+| POST | `/sim/census` | answer every unreached simulated home from its persona (no calls) → `{requests}` *(added D2-02)* | Yash |
+| POST / GET | `/sim/control` | `{standIns: {voice, drivers, approval}: bool}` (partial updates) → current `standIns` | Yash |
 | GET | `/system/metrics` | → latency p50/p95, honesty, accuracy, dispatch results (`data/sim-results.json` from Yash) | Deep |
 | GET | `/health` | → `{ok, env, version, gitSha}` | Prem |
 

@@ -12,8 +12,8 @@ Way Out is built for wildfire evacuations. When a zone goes to **SET**, it calls
 
 ## Contents
 1. [The problem](#the-problem)
-2. [What Way Out does](#what-fair-warning-does)
-3. [What's new vs. Standard Response and FireSight](#whats-new)
+2. [What Way Out does](#what-way-out-does)
+3. [What's new vs. Standard Response and FireSight](#whats-new-vs-standard-response-and-firesight)
 4. [Architecture](#architecture)
 5. [Tech stack and sponsors](#tech-stack-and-sponsors)
 6. [Screens](#screens)
@@ -24,7 +24,8 @@ Way Out is built for wildfire evacuations. When a zone goes to **SET**, it calls
 11. [Team and timeline](#team-and-timeline)
 12. [Demo script](#demo-script)
 13. [Priorities (P0 / P1 / P2)](#priorities)
-14. [Credits and rules](#credits)
+14. [SunHacks rules and prize targets](#sunhacks-rules-and-prize-targets-from-the-opening-slides)
+15. [Credits and rules](#credits-and-rules)
 
 ---
 
@@ -32,9 +33,11 @@ Way Out is built for wildfire evacuations. When a zone goes to **SET**, it calls
 
 > **Aarya owns this section.** Every number needs a primary source in `docs/story/sources.md` before it goes on a slide.
 
-- In wildfires, the people who die are mostly older adults and people who can't leave on their own. Lahaina (2023), Camp Fire (2018), Eaton (2025). **TODO Aarya:** verify counts and age data from primary sources.
-- Disability registries exist, but in a disaster nobody has the staff to call through them in time.
-- Arizona this year: the **Pocket Fire** (June 2026) forced evacuations in **Oak Creek Canyon** north of Sedona, and **SR 89A**, the canyon's main road, was closed. That gives us one canyon and one main road out. **TODO Aarya:** InciWeb timeline, number of homes, and census age/disability rates for the canyon (we expect an older population; confirm it).
+- **In wildfires, the people who die are mostly older adults and people who can't leave on their own.** Camp Fire (2018): 53 of 69 identified victims (77%) were over 65 (F-05). Lahaina (2023): more than two-thirds of the 100 dead were 60 or older (F-11). Eaton (2025): 19 dead, average age 77, 18 of them in West Altadena (F-12).
+- **Most people with disabilities can't evacuate quickly alone.** In a UN survey of 5,717 people with disabilities, only 20.6% said they could evacuate immediately without difficulty; with more warning time that rises to 38% (F-16).
+- **Registries exist, but nobody has the staff to call through them in time.** Butte County had 4,000 people on its special-needs registry and staff started phoning ~1,500 in-home-care clients the morning of the Camp Fire, then had to abandon the calls (F-07, F-08). After Hurricane Beryl, Harris County reached 605 of 1,030 registrants (F-18).
+- **911 overloads.** LAFD took 3,624 911 calls in 24 hours during the January 2025 fires, about 2.4× normal (F-14).
+- **Arizona this year: the Pocket Fire.** Reported 5:01 p.m. June 19, 2026, 7 miles north of Sedona; the cause is officially **undetermined** (S-02). Oak Creek Canyon (zones 14 and 15) went **straight to GO about two hours later**, and **SR 89A**, the canyon's main road, was closed for 25 days (S-02, S-03, S-06). It burned 27,393 acres; no homes were lost (S-02). The canyon (Census Tract 16.02) has 650 households; **about half the residents are 65+** (vs 18.6% in Arizona) and **about 1 in 3 households is a person 65+ living alone** (C-01). Details: `docs/story/population.md`, `data/scenario.json`.
 - **The gap:** 911 dispatch is the bottleneck. Calls queue up. The person in a wheelchair waits in the same line as everyone else. Nothing connects them to the van or the neighbor down the street who could take them.
 
 ## What Way Out does
@@ -120,7 +123,7 @@ The full walkthrough, with every flow, state machine, deployment, and fallback, 
 |---|---|---|
 | Voice and phone line | **Cartesia Line** (Python SDK, Ink STT, Sonic TTS, managed numbers) | — |
 | Live interpretation | **Gemini Flash** (`gemini-3.8-flash`, JSON schema output) | **Gemini** |
-| Backup brain + grader | **Claude Sonnet 5.5** as fallback; **Claude Opus 5.5** as the eval judge | — |
+| Backup brain + grader | **Claude Sonnet 5.5** as fallback; **Claude Opus 5.5** as the eval judge, both on **Amazon Bedrock** (D1-10) | **Best Use of AWS** (Amazon) |
 | Vision | **Gemini** on photos from residents and drivers (smoke, flames, blocked road) | **Gemini** |
 | Database | **MongoDB Atlas**: geo queries, Vector Search, change streams | **MongoDB** |
 | Time series | **Tiger Data**: vehicle tracks, fire detections, call latency, KPIs | **Tiger Data** |
@@ -131,6 +134,8 @@ The full walkthrough, with every flow, state machine, deployment, and fallback, 
 | Domain | **GoDaddy Registry** (via the MLH offer) | **GoDaddy Registry** |
 | Frontend | Next.js 15 + Tailwind + shadcn/ui + MapLibre GL + deck.gl, hosted on Vercel | — |
 | Dispatch | Python, Google OR-Tools | — |
+
+**Future of Work (JFF Ventures prize).** Way Out turns paratransit drivers, agency van crews and neighbors into an on-call emergency workforce. The AI works the phone bank (200 homes at once), so one dispatcher supervises and approves instead of dialing. Drivers get offers like gig work, see exactly who they're picking up and what help is needed, and get mileage paid (Solana, P2). These are low- and middle-wage workers who get paid, safe, well-briefed work at the moment they're most needed.
 
 ## Screens
 
@@ -279,6 +284,29 @@ INTERNAL_TOKEN=         # shared secret between Line agent and API
 - **P2 (if time):** Gemini photo reports · Solana mileage payouts · MATLAB spread · flood plug-in.
 
 <a name="credits"></a>
+## SunHacks rules and prize targets (from the opening slides)
+
+**Rules that can disqualify us:**
+- **Submit on Devpost by 11:00 AM Sunday. No late submissions.** Our target: complete by **10:00**, last touch by 10:30.
+- **No commits before hacking starts (11:10 AM Sat) or after it ends (11:00 AM Sun).** Our first commit is 1:12 PM Sat ✅. **Code freeze at 10:30 AM Sun; nobody pushes to any branch after 11:00**, not even a typo fix.
+- A valid project: follows the MLH Code of Conduct, has a filled-out Devpost, and hasn't been made before (all code written here; see Credits).
+
+**Judging:**
+- **3 minutes of demo, then 2 minutes of questions. "Your hack, not your slides, is judged."** The demo opens on the live console and phone. At most one slide (the story), then the product.
+- Devpost: fill it as we go, **one editor at a time** (Aarya edits, Prem reviews). A video is optional but recommended (A-10).
+
+**Prizes we go for:**
+
+| Prize | Why we fit | Proof in the demo |
+|---|---|---|
+| Best Overall (1st/2nd/3rd) | Real problem, real numbers, works live end to end | The whole 3 minutes |
+| **Future of Work: JFF Ventures** | Drivers and dispatchers as an AI-assisted emergency workforce (see above) | Driver app offer → accept; one dispatcher approving a 200-home plan |
+| **Best Use of AWS: Amazon** | Claude on Amazon Bedrock is the backup brain and the eval judge | `/system`: judge results, provider = Bedrock |
+| **Best Use of TinyFish** | A TinyFish agent watches the zone page and starts the calls at SET | Demo step 2: flip the drill page → calls start with no other click |
+| MLH sponsor prizes | Gemini, MongoDB Atlas, Tiger Data, Vultr, GoDaddy Registry (Solana and MATLAB are P2) | Tick each one on Devpost |
+
+Not targeted: Best Hardware, Best Gaming, Most Impractical, Best Mascot, and the student-org categories.
+
 ## Credits and rules
 
 - Ideas from **Standard Response** (Cal Hacks 13.0: call-every-home census, status-template honesty, atomic accept) and **FireSight** (LA Hacks 2026: Gemini hazard vision, wearer SOS/man-down). **No code was copied.** Both repos have no license, and MLH rules forbid reusing earlier code. We wrote everything here at SunHacks.
