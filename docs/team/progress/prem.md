@@ -1,6 +1,6 @@
 # Prem: progress
 
-**Role:** foundation, infra, coordination · **Task file:** [`docs/team/prem.md`](../prem.md) · **Your branch:** `feat/prem-foundation`
+**Role:** foundation, infra, coordination · **Task file:** [`docs/team/prem.md`](../prem.md) · **Your branch:** `feat/prem`
 
 Update this table as you go (⬜ todo · 🟡 in progress · ✅ done · ⛔ blocked). Commit it with your work so the team
 can see where you are on `develop` after each merge.
@@ -21,7 +21,7 @@ can see where you are on `develop` after each merge.
 
 ## How to work
 
-- `feat/prem-foundation` is your home branch, cut from `develop`. For each task you can work here, or cut a task branch
+- `feat/prem` is your home branch, cut from `develop`. For each task you can work here, or cut a task branch
   (`feat/<ID>-<slug>`, names above) from `develop` and open a PR back into `develop`. Small PRs merge faster.
 - Keep in sync: `git fetch origin && git rebase origin/develop` before you open a PR.
 - Rules: [`AGENTS.md`](../../../AGENTS.md) · flow: [`CONTRIBUTING.md`](../../../CONTRIBUTING.md) · shared shapes: [`docs/CONTRACT.md`](../../CONTRACT.md).
