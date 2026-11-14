@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     firms_map_key: str = ""
     tinyfish_api_key: str = ""
 
+    # Dialer (D1-05). Cartesia numbers place at most 1 outbound call/s; stand-ins have no such limit.
+    dial_rate_per_s: float = 1.0
+    standin_rate_per_s: float = 2.0
+    standin_concurrency: int = 20
+    standin_turn_delay_s: float = 0.6  # pause between stand-in turns, so /calls looks like a call
+    reach_ladder_scale: float = 1.0  # 0.1 = retries after 12 s / 30 s instead of 2 / 5 min (demo)
     public_api_url: str = "http://localhost:8000"
     internal_token: str = "dev-token-change-me"
     cors_origins: str = "*"  # comma-separated

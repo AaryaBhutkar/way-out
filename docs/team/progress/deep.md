@@ -11,7 +11,7 @@ can see where you are on `develop` after each merge.
 | D1-02 | 12:30–2:30 | State machine + templates | `feat/deep` | ✅ done | |
 | D1-03 | 2:30–4:00 | Interpreter + honesty | `feat/deep` | 🟡 code + tests done; needs a live Gemini/Claude key check | |
 | D1-04 | 4:00–5:45 | Record → request | `feat/deep` | 🟡 backend + `/calls` page done; M1 check (real call → map) waits on D1-01 | |
-| D1-05 | 6:00–8:00 | Dialer + reach ladder | `feat/D1-05-dialer-reach-ladder` | ⬜ todo | |
+| D1-05 | 6:00–8:00 | Dialer + reach ladder | `feat/deep` | ✅ stand-ins + ladder done (200 homes in ~2 min); real-phone dialing coded, untested until D1-01 | |
 | D1-06 | 8:00–10:00 | Callbacks + live status | `feat/D1-06-callbacks-live-status` | ⬜ todo | |
 | D1-07 | 10:00–11:15 | TinyFish SET trigger | `feat/D1-07-tinyfish-set-trigger` | ⬜ todo | |
 | D1-08 | 11:15–12:15 | Dedupe + kiosk | `feat/D1-08-dedupe-kiosk` | ⬜ todo | |
@@ -32,3 +32,9 @@ can see where you are on `develop` after each merge.
   `mobility=wheelchair` / `medical=none` in interpreter output.
 - Honesty guard also blocks timing words, comfort and advice at every status, not only before accept.
 - A household that can leave with a car gets `role: left` (green). Tell Yash if the console wants a different role.
+- Dialer (D1-05): runs inside the API. Zone at `set`/`go` → homes called earliest deadline first.
+  Simulated homes are called only while `POST /sim/control {"standIns": {"voice": true}}` is on.
+  Real phones need `CARTESIA_API_KEY`, `CARTESIA_AGENT_ID`, `CARTESIA_FROM_NUMBER_ID`; the Line agent gets
+  `householdId` + `callId` as dynamic variables. Demo knob: `REACH_LADDER_SCALE=0.1` shortens the 2/5/3-minute waits.
+- Any home without a car now gets a request (Aarya's personas expect it), not only no car + mobility limits.
+- Known gap: personas p29 ("I'm staying") and p31 (suspicious caller) end as `left`, not `stay`/`unknown`.

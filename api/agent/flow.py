@@ -74,11 +74,11 @@ def new_state(mode: str = "outbound", language: str = "en") -> dict[str, Any]:
 
 
 def needs_ride(record: dict[str, Any], state: dict[str, Any] | None = None) -> bool:
-    """CONTRACT: canLeave = no/unsure, or no car with mobility limits."""
+    """canLeave = no/unsure, or no car. (deep.md said "no car with mobility limits"; Aarya's personas
+    expect anyone without a car to get a request, and silence is never safe, so no car is enough.)"""
     if record.get("canLeave") in ("no", "unsure"):
         return True
-    limited = record.get("mobility") not in (None, "walks") or bool(state and state.get("chairPending"))
-    return record.get("hasCar") is False and limited
+    return record.get("hasCar") is False
 
 
 def _needs_path(record: dict[str, Any]) -> bool:

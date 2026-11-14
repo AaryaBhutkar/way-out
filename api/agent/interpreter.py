@@ -309,9 +309,16 @@ def rules(text: str, *, goal: str | None = None, language: str = "en") -> Interp
     t = text.lower().strip()
     it = Interp(source="rules")
     # "no wait, my son is here" is a correction, not a "no" to the question we just asked.
-    correcting = _has(r"^(no,? wait|wait|actually|sorry|oh,? and|también|espere|perdón)\b", t)
-    is_no = _has(_NO, t) and not correcting
-    is_yes = _has(_YES, t) and not is_no and not correcting
+    correcting = _has(r"^(no,? wait|wait|actually|sorry|oh,? (wait|and)|también|espere|perdón)\b", t)
+    lead = re.match(r"^\W*([\wáéíóúñ']+)", t)
+    lead_word = lead.group(1) if lead else ""
+    if not correcting and re.fullmatch(_YES, lead_word, re.IGNORECASE):
+        is_yes, is_no = True, False  # "Yes, ... she has no car" is still a yes
+    elif not correcting and re.fullmatch(_NO, lead_word, re.IGNORECASE):
+        is_yes, is_no = False, True
+    else:
+        is_no = _has(_NO, t) and not correcting
+        is_yes = _has(_YES, t) and not is_no and not correcting
     it.answer = "yes" if is_yes else "no" if is_no else "unclear"
     if _has(r"\b(español|espanol|spanish|hablo español)\b", t) or _has(r"[ñ¿¡áéíóú]", t):
         it.language = "es"
@@ -354,7 +361,9 @@ def rules(text: str, *, goal: str | None = None, language: str = "en") -> Interp
     if _has(r"\b(dialysis|diálisis)\b", t):
         it.set.setdefault("medical", []).append("dialysis")
 
-    if goal == "people" or _has(r"\b(just me|only me|solo yo|people|personas|of us)\b", t):
+    # Count people only when asked, or when they clearly talk about the household ("two of us").
+    # "It takes two people to lift him" is about help, not household size.
+    if goal == "people" or _has(r"\b(just me|only me|solo yo|vivo sola?|of us|somos \w+)\b", t):
         n = _count(t)
         if n:
             it.set["peopleCount"] = n

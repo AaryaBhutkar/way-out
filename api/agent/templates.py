@@ -157,7 +157,7 @@ QUESTIONS: dict[Lang, dict[str, tuple[str, str, str]]] = {
             "So the vehicle has a seat for everyone.",
         ),
         "pets": (
-            "Are there any pets coming with you?",
+            "Are there any pets at home?",
             "Any pets? Yes or no.",
             "So we can plan room for them.",
         ),
@@ -224,7 +224,7 @@ QUESTIONS: dict[Lang, dict[str, tuple[str, str, str]]] = {
             "Para que haya asiento para todos.",
         ),
         "pets": (
-            "¿Hay mascotas que vayan con ustedes?",
+            "¿Hay mascotas en casa?",
             "¿Mascotas? Sí o no.",
             "Para planear espacio para ellas.",
         ),

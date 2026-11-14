@@ -33,6 +33,7 @@ DB name = `wayout_${ENV}` (`dev`, `staging`, `prod`). All geometry is GeoJSON. I
   },
   "corrections": [ { "field": "peopleCount", "from": 1, "to": 2, "at": "..." } ],
   "reach": "not_called|ringing|in_call|answered|retry_2|retry_5|texted|door_check|unreachable",
+  "dialAttempts": 2, "lastDialAt": "ISO", "nextAttemptAt": "ISO",   // dialer + reach ladder (added D1-05)
   "role": "unknown|needs_ride|can_help|left|stay",   // drives map color
   "fireArrivalAt": "ISO",         // hazard service
   "deadlineAt": "ISO",            // fireArrivalAt - 10 min
