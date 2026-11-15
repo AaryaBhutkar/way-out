@@ -17,9 +17,9 @@ def no_models(monkeypatch):
 
 
 async def test_metrics_from_a_real_stand_in_call(client, db, tmp_path, monkeypatch):
-    monkeypatch.setattr(sim_data, "DATA_DIR", tmp_path)
     hh = await make_household(db, personaId="p01")
-    await standin.run_call(db, hh["_id"], "call_sys")
+    await standin.run_call(db, hh["_id"], "call_sys")  # needs the real personas (data/)
+    monkeypatch.setattr(sim_data, "DATA_DIR", tmp_path)  # then hide eval/sim files from /system
 
     body = (await client.get("/system/metrics")).json()
     live = body["live"]

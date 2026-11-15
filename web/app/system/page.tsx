@@ -49,6 +49,54 @@ function Missing({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-muted">{children}</p>;
 }
 
+/** data/sim-results.json from Yash's impact simulation (D2-09). */
+type SimResults = {
+  label?: string;
+  metric?: string;
+  runs?: number;
+  bars?: { key: string; label: string; available?: boolean; median?: number; min?: number; max?: number }[];
+  headline?: { text?: string };
+};
+
+function Dispatch({ d }: { d: SimResults }) {
+  const bars = (d.bars ?? []).filter((b) => b.available !== false && typeof b.median === "number");
+  return (
+    <>
+      <ul className="flex flex-col gap-2">
+        {bars.map((b) => (
+          <li key={b.key} className="flex flex-col gap-1">
+            <div className="flex justify-between text-sm">
+              <span>{b.label}</span>
+              <span className="tabular-nums">
+                {Math.round(b.median!)}%
+                {b.min != null && b.max != null && (
+                  <span className="text-muted">
+                    {" "}
+                    ({Math.round(b.min)}–{Math.round(b.max)})
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="relative h-2 overflow-hidden rounded bg-line">
+              {b.min != null && b.max != null && (
+                <div className="absolute h-full bg-vehicle/30" style={{ left: `${b.min}%`, width: `${b.max - b.min}%` }} />
+              )}
+              <div
+                className={`absolute h-full ${b.key === "today" ? "bg-help" : "bg-vehicle"}`}
+                style={{ width: `${b.median}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="text-sm text-muted">
+        {d.metric}
+        {d.runs ? ` ${d.runs} simulated runs.` : ""} {d.label}
+      </p>
+    </>
+  );
+}
+
 export default function SystemPage() {
   const connect = useLive((s) => s.connect);
   useEffect(() => connect(), [connect]);
@@ -170,19 +218,9 @@ export default function SystemPage() {
           )}
         </Card>
 
-        <Card title="Dispatch vs. baseline" sim>
+        <Card title="Dispatch vs. today" sim>
           {m?.dispatch ? (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              {Object.entries(m.dispatch)
-                .filter(([, v]) => typeof v !== "object" || v === null)
-                .slice(0, 12)
-                .map(([k, v]) => (
-                  <div key={k} className="contents">
-                    <dt className="text-muted">{k}</dt>
-                    <dd className="tabular-nums">{String(v)}</dd>
-                  </div>
-                ))}
-            </dl>
+            <Dispatch d={m.dispatch as unknown as SimResults} />
           ) : (
             <Missing>Waiting for the impact simulation (data/sim-results.json, D2-09).</Missing>
           )}
