@@ -35,7 +35,8 @@ FALLBACK = {
 
 
 def call_context(req: CallRequest) -> dict[str, str]:
-    """householdId / callId / callType / language from the call's dynamic variables."""
+    """What we know about the call. Cartesia doesn't pass our dynamic variables to SDK agents, so the
+    API usually works out the household from `cartesiaCallId` (stored by our dialer) instead."""
     md: dict[str, Any] = dict(req.metadata or {})
     for nested in ("dynamic_variables", "dynamicVariables", "variables"):
         if isinstance(md.get(nested), dict):
@@ -45,6 +46,8 @@ def call_context(req: CallRequest) -> dict[str, str]:
         "callId": str(md.get("callId") or f"call_{req.call_id}"),
         "callType": str(md.get("callType") or "inbound"),
         "language": str(md.get("language") or "en"),
+        "cartesiaCallId": str(req.agent_call_id or ""),
+        "callerPhone": str(req.from_ or ""),
     }
 
 
@@ -53,16 +56,34 @@ class WayOutAgent:
         self.ctx = ctx
         self.client = client
         self.lang = ctx["language"] if ctx["language"] in FALLBACK else "en"
+        self.started = False
 
     async def process(self, env: Any, event: Any) -> AsyncIterator[Any]:
+        # People often say "Hello?" the moment they pick up. The SDK cancels the greeting when they
+        # start talking, so the first turn may arrive before the call was started: start it then.
+        if isinstance(event, UserTurnEnded) and not self.started:
+            event = CallStarted()
         if isinstance(event, CallStarted):
+            if self.started:
+                return
             try:
-                out = await self.client.start(self.ctx["householdId"], self.ctx["callType"], self.ctx["callId"])
+                out = await self.client.start(
+                    self.ctx["householdId"],
+                    self.ctx["callType"],
+                    self.ctx["callId"],
+                    cartesia_call_id=self.ctx["cartesiaCallId"] or None,
+                    caller_phone=self.ctx["callerPhone"] or None,
+                )
             except Exception:
                 log.exception("agent/start failed")
                 yield AgentSendText(text=FALLBACK[self.lang])
                 yield AgentEndCall()
                 return
+            # The API tells us which call and household this really is; use those from now on.
+            for key in ("callId", "householdId", "callType"):
+                if out.get(key):
+                    self.ctx[key] = out[key]
+            self.started = True
             for line in out.get("say", []):
                 yield AgentSendText(text=line)
             return

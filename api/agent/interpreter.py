@@ -338,7 +338,11 @@ def rules(text: str, *, goal: str | None = None, language: str = "en") -> Interp
         it.emergency = "medical"
     elif _has(r"\b(flames|on fire|fire is here|house is burning|fuego aquí|se quema)\b", t):
         it.emergency = "flames"
-    if _has(r"\b(is (someone|anyone|somebody|help) coming|send (someone|help)|ride|pick me up|alguien viene)\b", t):
+    if _has(
+        r"\b(is (someone|anyone|somebody|help) coming|send (someone|help|a car|a van|a vehicle)|ride|pick me up"
+        r"|(find|get|need) (me )?(a |someone |some )?(vehicle|car|van|driver|help)|alguien viene|un carro)\b",
+        t,
+    ):
         it.flags.add("asks_ride")
     if _has(r"\b(when|how long|how soon|what time|cuándo|cuando)\b", t):
         it.flags.add("wants_time")
@@ -346,7 +350,7 @@ def rules(text: str, *, goal: str | None = None, language: str = "en") -> Interp
         it.flags.add("asks_what_to_do")
     if _has(r"\b(why|por qué|porque)\b", t) and "?" in t or _has(r"^(why|por qué)\b", t):
         it.flags.add("asks_why")
-    if _has(r"\b(repeat|say that again|what\?|pardon|sorry\?|repita|cómo)\b", t):
+    if _has(r"\b(repeat|say that again|pardon|repita|cómo)\b", t) or _has(r"^\W*(what|sorry|huh|excuse me)\W*\?", t):
         it.flags.add("asks_repeat")
     if _has(r"\b(bye|goodbye|hang up|adiós|adios)\b", t):
         it.flags.add("goodbye")
@@ -404,13 +408,15 @@ def rules(text: str, *, goal: str | None = None, language: str = "en") -> Interp
     if goal == "chair_kind" and "mobility" not in it.set and it.answer != "unclear":
         it.set["mobility"] = "power_wheelchair" if it.answer == "yes" else "manual_wheelchair"
     if goal == "assistance":
-        if _has(r"\b(two|lift|dos|levantar)\b", t) and not is_no:
+        if _has(r"\b(two|2|both|lift|lifting|dos|levantar\w*)\b", t) and not is_no:
             it.set["assistance"] = "two_person_lift"
-        elif _has(r"\b(one|someone|a little|una persona|un poco)\b", t):
+        elif _has(r"\b(one|1|someone|a little|una persona|un poco)\b", t):
             it.set["assistance"] = "one_person"
         elif _has(r"\b(none|no help|nothing|ninguna)\b", t):
             it.set["assistance"] = "none"
-        elif it.answer == "no":  # simple re-ask is "does it take two people to lift?"
+        elif it.answer == "yes":  # the simple re-ask is "does it take two people to lift?"
+            it.set["assistance"] = "two_person_lift"
+        elif it.answer == "no":
             it.set["assistance"] = "one_person"
     return it
 
