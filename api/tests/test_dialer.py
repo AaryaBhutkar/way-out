@@ -161,6 +161,18 @@ async def test_unanswered_real_call_moves_down_the_ladder(db):
     assert (await db.calls.find_one({"_id": "call_r"}))["outcome"] == "no_answer"
 
 
+async def test_calls_that_never_connected_are_closed(db):
+    """A call record with no pickup stops showing as live on /calls; a call still ringing is left alone."""
+    old = utcnow() - timedelta(minutes=10)
+    await db.calls.insert_one({"_id": "c_dead", "householdId": "h1", "outcome": None, "startedAt": old})
+    await db.calls.insert_one({"_id": "c_ringing", "householdId": "h2", "outcome": None, "startedAt": utcnow()})
+    await db.calls.insert_one({"_id": "c_talking", "householdId": "h3", "outcome": "answered", "startedAt": old})
+    await dialer.sweep(db, utcnow())
+    assert (await db.calls.find_one({"_id": "c_dead"}))["outcome"] == "no_answer"
+    assert (await db.calls.find_one({"_id": "c_ringing"}))["outcome"] is None
+    assert (await db.calls.find_one({"_id": "c_talking"}))["outcome"] == "answered"
+
+
 async def test_dial_endpoint(client, db):
     sim = await make_household(db, personaId="p18")
     res = await client.post("/calls/dial", json={"householdId": sim["_id"]})
