@@ -259,7 +259,7 @@ async def _judge_gemini(http, prompt: str, convo: str) -> str:
     s = get_settings()
     r = await http.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{s.gemini_model}:generateContent",
-        params={"key": s.gemini_api_key},
+        headers={"x-goog-api-key": s.gemini_api_key},  # header: URLs get logged
         json={
             "systemInstruction": {"parts": [{"text": prompt}]},
             "contents": [{"role": "user", "parts": [{"text": convo}]}],

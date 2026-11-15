@@ -201,7 +201,7 @@ async def _gemini(prompt: str, http: httpx.AsyncClient) -> dict[str, Any]:
             "responseSchema": SCHEMA,
         },
     }
-    r = await http.post(url, params={"key": s.gemini_api_key}, json=body)
+    r = await http.post(url, headers={"x-goog-api-key": s.gemini_api_key}, json=body)  # header: URLs get logged
     r.raise_for_status()
     text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
     return json.loads(text)

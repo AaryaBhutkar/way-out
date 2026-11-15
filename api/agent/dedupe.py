@@ -97,7 +97,7 @@ async def embed(texts: list[str]) -> list[list[float]] | None:
     body = {"requests": [{"model": f"models/{EMBED_MODEL}", "content": {"parts": [{"text": t}]}} for t in texts]}
     try:
         async with httpx.AsyncClient(timeout=5) as http:
-            r = await http.post(url, params={"key": key}, json=body)
+            r = await http.post(url, headers={"x-goog-api-key": key}, json=body)  # header: URLs get logged
             r.raise_for_status()
             return [e["values"] for e in r.json()["embeddings"]]
     except Exception as e:
