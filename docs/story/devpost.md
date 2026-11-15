@@ -1,8 +1,18 @@
 # Devpost draft (A-08)
 
-> Paste each section into Devpost and **save as draft; don't submit** (A-11 submits by 10:30 AM).
+> Paste each section into Devpost and **save as draft; don't submit yet**. A-11: **submit complete by 10:00 AM Sunday**; the hard deadline is 11:00 and late submissions aren't accepted.
+> **Aarya is the only Devpost editor.** Prem reviews but doesn't edit at the same time (two editors overwrite each other).
 > Every `[__]` is a number we fill from `/system` or `data/sim-results.json` at A-09. Don't publish a `[__]`.
-> Before submitting, delete any sponsor or feature line that didn't actually ship.
+> Before submitting, delete any sponsor or feature line that didn't actually ship. Lines marked *(only if shipped)* need a check.
+
+## Prize opt-ins (tick on Devpost)
+
+- [ ] **Future of Work: JFF Ventures** (see the Future of Work paragraph under "What it does")
+- [ ] **Best Use of AWS** *(only if shipped: Claude on Amazon Bedrock as fallback + eval judge, D1-10)*
+- [ ] **Best Use of TinyFish**
+- [ ] MLH: **Gemini**, **MongoDB Atlas**, **Tiger Data**, **Vultr**, **GoDaddy Registry**
+
+Not targeted: Best Hardware, Best Gaming, Most Impractical, Best Mascot, student-org categories.
 
 **Project name:** Way Out
 **Tagline (≤ 60 chars):** Call every home at once. Get everyone a way out.
@@ -33,13 +43,15 @@ Silence is never "safe". No answer means retry at 2 minutes, again at 5, then a 
 
 Drivers are protected too. The driver app shows fire distance, flags a route into the fire buffer, and sends SOS or MAN DOWN (impact, then stillness) with coordinates.
 
+**Future of work.** Way Out turns paratransit drivers, agency van crews and neighbors into an on-call emergency workforce. The AI works the phone bank, calling every home at once, so one dispatcher supervises and approves a plan instead of dialing. Drivers get offers the way gig workers do, and they see exactly who they're picking up and what help is needed before they accept. They're low- and middle-wage workers, getting safe, well-briefed work at the moment they're most needed.
+
 ## How we built it
 
 - **Voice:** Cartesia Line (phone numbers, speech-to-text, text-to-speech) runs the calls.
 - **Understanding:** Gemini Flash turns each answer into a structured update to the household record (JSON schema output), including corrections mid-call ("actually, my husband is here").
 - **Honesty, enforced in code:** the model never writes ride status, ETAs, driver names or promises. Every sentence about a ride is a fixed template chosen by the request's status, and a guard drops any model acknowledgment that sounds like a promise or contains a digit. Claude Opus grades every agent line in our evals.
 - **Data:** MongoDB Atlas for households, requests, vehicles and offers: geo queries, Vector Search for de-duplicating callers, and change streams that push every update to the dispatcher's map over a WebSocket.
-- **Dispatch:** Google OR-Tools solves a pickup-and-delivery routing problem with time windows and capacities, re-solved on every change. Greedy earliest-deadline-first is the baseline and fallback.
+- **Dispatch:** a greedy earliest-deadline-first dispatcher matches each person to a vehicle with the right seats, wheelchair space and crew, and re-plans on every change. *(Only if shipped:* Google OR-Tools pickup-and-delivery with time windows and capacities; the sim marks it "not built" as of 7 PM Saturday.*)*
 - **Atomic accept:** a driver's accept is a single compare-and-set, so two drivers tapping the same offer can't both win. Request status changes only along legal transitions, with an audit log.
 - **Fire deadlines:** elliptical (FARSITE-style) spread from satellite fire detections and wind gives each home a deadline. It's a scenario input, not a validated forecast.
 - **Triggers:** TinyFish watches Ready, Set, Go status pages and starts the calls when a zone changes.
@@ -58,6 +70,7 @@ Drivers are protected too. The driver app shows fire distance, flags a route int
 | TinyFish | Watches Ready, Set, Go pages and triggers the calls |
 | Tiger Data | Vehicle tracks, fire detections, call latency |
 | GoDaddy Registry | Our domain |
+| Amazon Bedrock *(only if shipped)* | Claude on Bedrock: fallback call interpreter and the eval judge |
 
 ## Challenges we ran into
 
@@ -69,9 +82,10 @@ Drivers are protected too. The driver app shows fire distance, flags a route int
 ## Accomplishments that we're proud of
 
 - A real phone call that updates a dispatcher's map while the person is still talking, including a mid-call correction.
-- **[__]/[__]** agent turns passed the honesty judge (no promise before a driver accepted).
-- In simulation, **[__]%** of people who needed a ride were picked up before their deadline, vs **[__]%** for greedy dispatch (median over [__] runs, range [__]–[__]).
-- Median voice turn latency **[__] ms** (p95 [__] ms).
+- **620/620** agent turns made no promise before a driver accepted, checked by code on simulated personas (E-01).
+- In simulation, **91%** of people who needed a ride were picked up before their deadline with Way Out, vs **48%** with today's 911 queue (median of 50 runs per setting; range 86–96% vs 37–53% across low, middle and high settings). *Simulated: 200 homes, Oak Creek Canyon scenario* (X-01).
+  - That baseline is generous to today: it assumes every person who needs a ride gets through to 911. If only 55% call, today drops to 34% (X-02). Even if 911 could also send the neighbors' cars, today reaches 66% (X-03).
+- Median voice turn latency **[__] ms** (p95 [__] ms). *(Wait for Deep's numbers from a real test call. Don't use the current eval latency: it's the keyword checker in-process, not a call.)*
 - 77 backend tests, including every illegal status transition and 20 concurrent accepts.
 - 22 sourced facts behind every number in our story; nothing on a slide without a citation.
 
@@ -90,7 +104,7 @@ Drivers are protected too. The driver app shows fire distance, flags a route int
 
 ## Built with
 
-`python` `fastapi` `mongodb-atlas` `atlas-vector-search` `google-or-tools` `gemini` `cartesia` `claude` `tinyfish` `tiger-data` `timescaledb` `next.js` `tailwindcss` `shadcn-ui` `maplibre` `deck.gl` `vultr` `caddy` `vercel` `godaddy-registry` `nasa-firms`
+`python` `fastapi` `mongodb-atlas` `atlas-vector-search` `google-or-tools` *(only if shipped)* `gemini` `cartesia` `claude` `tinyfish` `tiger-data` `timescaledb` `next.js` `tailwindcss` `shadcn-ui` `maplibre` `deck.gl` `vultr` `caddy` `vercel` `godaddy-registry` `nasa-firms` `amazon-bedrock` *(only if shipped)*
 
 ## AI use disclosure
 

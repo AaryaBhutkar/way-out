@@ -33,7 +33,7 @@ export const api = {
     call<Doc[]>("GET", `/households${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ""}`),
   openRequests: () => call<Doc[]>("GET", "/requests/open"),
   vehicles: () => call<Doc[]>("GET", "/vehicles"),
-  hazards: () => call<{ hazards: Doc[]; closures: Doc[] }>("GET", "/hazards"),
+  hazards: () => call<{ hazards: Doc[]; closures: Doc[]; shelters?: Doc[]; zones?: Doc[] }>("GET", "/hazards"),
   latestPlan: () => call<{ plan: Doc | null; assignments: Doc[] }>("GET", "/plans/latest"),
 
   approve: (id: string) => call<Doc>("POST", `/assignments/${id}/approve`),
@@ -53,7 +53,7 @@ export const api = {
   run: (id: string) => call<DriverRun>("GET", `/vehicles/${id}/run`),
   presence: (id: string) => call<{ ok: true }>("POST", `/vehicles/${id}/presence`),
   position: (id: string, p: { lon: number; lat: number; heading?: number; speedMps?: number }) =>
-    call<{ ok: true }>("POST", `/vehicles/${id}/position`, p),
+    call<{ ok: true; applied?: boolean; reason?: string }>("POST", `/vehicles/${id}/position`, p),
   safety: (id: string, s: { state: "ok" | "check" | "man_down" | "sos"; lon?: number; lat?: number }) =>
     call<{ ok: true }>("POST", `/vehicles/${id}/safety`, s),
   closeRoad: (coordinates: [number, number][], source: "manual" | "hazard" | "sim" = "manual") =>
