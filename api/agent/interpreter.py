@@ -240,10 +240,22 @@ def _client() -> httpx.AsyncClient:
 
 
 async def interpret(
-    text: str, *, stage: str, goal: str | None, record: dict, recent: list[dict], language: str = "en"
+    text: str,
+    *,
+    stage: str,
+    goal: str | None,
+    record: dict,
+    recent: list[dict],
+    language: str = "en",
+    use_models: bool = True,
 ) -> Interp:
-    """Gemini → Claude → rules. Never raises."""
+    """Gemini → Claude → rules. Never raises. `use_models=False` goes straight to the free rules
+    (stand-in calls and evals, so 200 simulated homes never run up a model bill)."""
     t0 = time.perf_counter()
+    if not use_models:
+        result = rules(text, goal=goal, language=language)
+        result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
+        return result
     s = get_settings()
     prompt = build_prompt(text, stage, goal, record, recent)
     result: Interp | None = None

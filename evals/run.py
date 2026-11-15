@@ -49,6 +49,7 @@ FIELDS = ["canLeave", "peopleCount", "pets", "hasCar", "mobility", "medical", "a
 MAX_TURNS = 30
 OUT = ROOT / "evals" / "results.json"
 SUMMARY = ROOT / "data" / "eval-results.json"  # read by GET /system/metrics
+USE_MODELS = False  # --models turns on Gemini/Claude for the "own words" mode (costs money)
 
 
 def _template_sentences() -> list[str]:
@@ -112,7 +113,7 @@ async def run_persona(p: dict[str, Any], mode: str) -> dict[str, Any]:
         done_line = "Eso es todo lo que sé." if p.get("language") == "es" else "That's all I know."
         for i in range(MAX_TURNS):
             text = lines[i] if i < len(lines) else done_line
-            out = await session.turn(db, call_id, hh_id, text, p.get("language", "en"))
+            out = await session.turn(db, call_id, hh_id, text, p.get("language", "en"), use_models=USE_MODELS)
             if out.get("done"):
                 break
     hh = await db.households.find_one({"_id": hh_id})
@@ -267,8 +268,11 @@ async def judge(rows: list[dict[str, Any]]) -> dict[str, Any]:
 async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--judge", action="store_true", help="also run the Claude Opus judge (costs money)")
+    ap.add_argument("--models", action="store_true", help="interpret with Gemini/Claude, not the free rules")
     ap.add_argument("--only", help="comma-separated persona ids")
     args = ap.parse_args()
+    global USE_MODELS
+    USE_MODELS = args.models
     s = get_settings()
     if args.judge and not s.anthropic_api_key:
         sys.exit("--judge needs ANTHROPIC_API_KEY")
@@ -280,7 +284,9 @@ async def main() -> None:
     t0 = time.perf_counter()
     results: dict[str, Any] = {
         "generatedAt": datetime.now(UTC).isoformat(timespec="seconds"),
-        "interpreterConfigured": "gemini" if s.gemini_api_key else "claude" if s.anthropic_api_key else "rules",
+        "interpreterConfigured": (
+            ("gemini" if s.gemini_api_key else "claude" if s.anthropic_api_key else "rules") if USE_MODELS else "rules"
+        ),
         "simulated": True,
         "note": "Fictional personas (data/personas.json) run through the real agent code, in-process.",
         "modes": {},

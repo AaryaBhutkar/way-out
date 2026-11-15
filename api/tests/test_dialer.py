@@ -63,6 +63,27 @@ async def test_every_persona_completes_a_call(db, pid):
         assert stored["role"] == "can_help", pid
 
 
+async def test_stand_ins_never_call_a_paid_model(db, monkeypatch):
+    """Even with Gemini and Claude keys set, simulated homes use the free rule interpreter."""
+    from api.agent import interpreter
+
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "g")
+    monkeypatch.setattr(get_settings(), "anthropic_api_key", "a")
+
+    async def paid(*a, **kw):
+        raise AssertionError("a stand-in called a paid model")
+
+    monkeypatch.setattr(interpreter, "_gemini", paid)
+    monkeypatch.setattr(interpreter, "_claude", paid)
+    hh = await make_household(db, personaId="p02")
+    out = await standin.run_call(db, hh["_id"], "call_free")
+    assert out["done"]
+    call = await db.calls.find_one({"_id": "call_free"})
+    assert {t.get("interpreter") for t in call["turns"] if t["speaker"] == "agent" and t.get("interpreter")} == {
+        "rules"
+    }
+
+
 async def test_rosa_corrects_herself(db):
     hh = await make_household(db, personaId="p01")
     await standin.run_call(db, hh["_id"], "call_rosa")
