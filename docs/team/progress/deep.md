@@ -7,7 +7,7 @@ can see where you are on `develop` after each merge.
 
 | ID | When | Task | Task branch | Status | PR |
 |---|---|---|---|---|---|
-| D1-01 | 11:10–12:30 | Cartesia hello-world → thin client | `feat/D1-01-cartesia-hello-world-thin-client` | ⬜ todo | |
+| D1-01 | 11:10–12:30 | Cartesia hello-world → thin client | `feat/deep` | 🟡 agent deployed (Ready) + number +1 218 595 2687; needs the public API URL + token before a real call | |
 | D1-02 | 12:30–2:30 | State machine + templates | `feat/deep` | ✅ done | |
 | D1-03 | 2:30–4:00 | Interpreter + honesty | `feat/deep` | 🟡 code + tests done; needs a live Gemini/Claude key check | |
 | D1-04 | 4:00–5:45 | Record → request | `feat/deep` | 🟡 backend + `/calls` page done; M1 check (real call → map) waits on D1-01 | |

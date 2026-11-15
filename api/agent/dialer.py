@@ -146,7 +146,7 @@ async def _cartesia_call(hh: dict[str, Any], call_id: str, call_type: str = "out
                 "dynamic_variables": {
                     "householdId": hh["_id"],
                     "callId": call_id,
-                    "callType": call_type,
+                    "callType": call_type,  # read by voice/main.py (call_context)
                     "language": hh.get("language", "en"),
                 },
             }
