@@ -107,7 +107,7 @@ received ──approve──► approved ──driver accepts──► driver_ac
 `{ _id, kind: fire|flood|road_blocked, source: firms|spread|photo|manual|sim, geometry, detectedAt, confidence, photoUrl? }`
 
 ### `zones`
-`{ _id, name, county, status: ready|set|go|clear, polygon, source: tinyfish|manual, sourceUrl, updatedAt }`
+`{ _id, name, county, status: ready|set|go|clear, polygon, source: tinyfish|manual, sourceUrl, updatedAt }`. Added D1-07: `drill: {published, publishedAt}` (what the drill page shows; changes nothing by itself) and `watch: {armedUntil, lastCheckAt, lastSeen, lastError, lastChangeAt, checks}` (TinyFish watcher). Collection `tinyfishUsage` `{_id: "YYYY-MM-DD", fetches}` counts free Fetch calls against the daily cap.
 
 ### Also
 `shelters` (location, capacity), `roadClosures` (LineString, source, at), `auditLog` (kind, message, refs, at), `plans` (version, solver, solveMs, objective, changedOffers; D2-04 adds proposals, unservable, unreachableCommitted, requested), `simControl` (one doc `_id: "sim"`, `standIns: {voice, drivers, approval}`; added D2-02).
@@ -146,6 +146,11 @@ Auth: dashboard and driver endpoints are open in demo mode. `/agent/*` and webho
 | POST | `/roads/closures` | `{geometry, source}` → triggers re-plan | Yash |
 | GET | `/hazards` | → fire front, detections, deadlines | Yash |
 | POST | `/hazards/photo` | multipart image + lon/lat → Gemini vision → hazard | Yash (P2) |
+| GET | `/zones` | → `[zone]` (added D1-07) | Deep |
+| GET | `/zones/{id}/drill` | → drill page view: published status, zone status, watcher, free-tier usage (added D1-07) | Deep |
+| POST | `/zones/{id}/drill` | `{published}` → drill view. Only changes the page; TinyFish must read it (added D1-07) | Deep |
+| POST | `/zones/{id}/drill/watch` | `{on}` → arm/disarm the TinyFish watcher (added D1-07) | Deep |
+| POST | `/zones/county-check` | one read-only TinyFish fetch of `COUNTY_PAGE_URL`, logged (Bearer; added D1-07) | Deep |
 | POST | `/zones/{id}/status` | `{status, sourceUrl}` (TinyFish webhook) → starts dialing at `set` | Deep |
 | POST | `/sim/seed` | `?scenario=pocket-fire&homes=200&seed=42&census=none\|instant&firstArrivalMin=90` → replaces the simulated world: 200 homes, 8 vehicles, 2 shelters, 2 zones. Real households stay | Yash |
 | POST | `/sim/census` | answer every unreached simulated home from its persona (no calls) → `{requests}` *(added D2-02)* | Yash |
