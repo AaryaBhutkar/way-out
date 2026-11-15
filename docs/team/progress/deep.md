@@ -44,4 +44,8 @@ can see where you are on `develop` after each merge.
   The watcher runs only while armed on `/drill`, reads the page every 15 s, disarms after 30 min, and stops for the
   day at 800 fetches (counted in `tinyfishUsage`). A `402` from TinyFish also stops it. Publishing a status on
   `/drill` changes nothing until TinyFish reads it. Needs `PUBLIC_WEB_URL` set to the deployed web app.
+- County check (for the pitch, 2026-11-15 00:20 UTC): TinyFish Fetch read the live Coconino County page
+  https://coconino.az.gov/eminfo ("Emergency Management Information", ~4,900 chars). It showed Stage 1 fire
+  restrictions and no zone at SET or GO, so the watcher correctly saw no status. Free Search also finds the county's
+  Ready-Set-Go and Evacuation Zones pages (coconino.az.gov/3129, /3124). Read-only: nothing was changed.
 - Known gap: personas p29 ("I'm staying") and p31 (suspicious caller) end as `left`, not `stay`/`unknown`.
