@@ -223,6 +223,12 @@ async def sweep(db: AsyncIOMotorDatabase, now: datetime) -> None:
         if (aware(hh.get("lastDialAt")) or now) < stale:
             call = await db.calls.find_one({"householdId": hh["_id"], "outcome": None}, sort=[("startedAt", -1)])
             await no_answer(db, hh["_id"], call["_id"] if call else None, now=now)
+    # Call records that never connected (no /agent/start) and whose household already moved on:
+    # close them so the call floor doesn't show them as live forever.
+    await db.calls.update_many(
+        {"outcome": None, "startedAt": {"$lt": stale}},
+        {"$set": {"outcome": "no_answer", "endedAt": now, "updatedAt": now}},
+    )
     async for hh in db.households.find({"reach": "texted"}):
         due = aware(hh.get("nextAttemptAt"))
         if due is not None and due <= now:
