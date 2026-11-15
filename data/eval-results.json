@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T02:27:47+00:00",
+  "generatedAt": "2026-11-15T03:04:09+00:00",
   "interpreterConfigured": "rules",
   "simulated": true,
   "note": "Fictional personas (data/personas.json) run through the real agent code, in-process.",
@@ -129,7 +129,7 @@
           "blocked": 0
         },
         "latencyMs": {
-          "p50": 0.3,
+          "p50": 0.2,
           "p95": 0.4,
           "turns": 348
         },

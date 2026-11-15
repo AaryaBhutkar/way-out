@@ -107,8 +107,15 @@ async def _cancel_queued_callbacks(db: AsyncIOMotorDatabase, request_id: str, st
 
 
 async def turn(
-    db: AsyncIOMotorDatabase, call_id: str, household_id: str, text: str, language: str = "en"
+    db: AsyncIOMotorDatabase,
+    call_id: str,
+    household_id: str,
+    text: str,
+    language: str = "en",
+    *,
+    use_models: bool = True,
 ) -> dict[str, Any]:
+    """One resident turn. `use_models=False` (stand-ins, free evals) skips Gemini/Claude entirely."""
     t0 = time.perf_counter()
     hh = await _household(db, household_id)
     call = await db.calls.find_one({"_id": call_id})
@@ -129,6 +136,7 @@ async def turn(
         record=record,
         recent=(call.get("turns") or [])[-6:],
         language=state.get("language", language),
+        use_models=use_models,
     )
     await log_task
 

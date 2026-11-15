@@ -263,6 +263,63 @@ async def test_question_at_neighbor_stage_is_not_a_neighbor(client, db):
     assert await db.auditLog.count_documents({"kind": "neighbor_reported"}) == 0
 
 
+async def test_first_real_phone_call_replayed(client, db):
+    """Deep's real call on 2026-11-15 (Cartesia, dev), word for word. It once lost the two-person lift."""
+    hh = await make_household(db)
+    call = Call(client, hh["_id"], "call_real_1")
+    await call.start()
+    for text in [
+        "Yes.",
+        "Uh, so we are 4 people, but I guess like one is not ready to leave. He is having, he's facing "
+        "some injury in his leg, so",
+        "Uh, no.",
+        "4.",
+        "No pets.",
+        "Yes, one person needs help.",
+        "Yes.",
+        "Uh, no, what one person used the wheelchair.",
+        "Uh, it's a manual chair.",
+        "Uh, 2 people.",
+    ]:
+        out = await call.say(text)
+    assert out["record"]["assistance"] == "two_person_lift" and out["stage"] == "readback"
+    assert "two people to lift" in spoken(out)
+    await call.say("Yes, correct.")
+    out = await call.say("Sorry?")
+    assert out["stage"] == "neighbor" and "Do you know a neighbor" in spoken(out)  # repeated, not re-worded
+    await call.say("Uh, I don't know.")
+    out = await call.say("Uh, yeah, please find a vehicle for me.")
+    assert templates.STATUS["en"]["received"] in spoken(out) and out["done"]
+    req = await db.requests.find_one({"householdId": hh["_id"]})
+    assert req["need"] == {"seats": 4, "wheelchair": 1, "stretcher": 0, "crew": 2, "lift": False}
+
+
+async def test_start_finds_the_call_by_cartesia_id(client, db):
+    """Cartesia doesn't pass our dynamic variables to the SDK agent; its own call id is enough."""
+    hh = await make_household(db, simulated=False, phone="+16025550199")
+    await db.calls.insert_one(
+        {"_id": "call_dialed", "householdId": hh["_id"], "direction": "outbound", "cartesiaCallId": "ac_123"}
+    )
+    r = await client.post(
+        "/agent/start",
+        json={"householdId": "", "callType": "inbound", "callId": "call_CA999", "cartesiaCallId": "ac_123"},
+        headers=AUTH,
+    )
+    body = r.json()
+    assert r.status_code == 200 and body["callId"] == "call_dialed" and body["householdId"] == hh["_id"]
+    assert body["callType"] == "outbound" and hh["address"] in " ".join(body["say"])
+
+
+async def test_start_finds_an_inbound_caller_by_phone(client, db):
+    hh = await make_household(db, simulated=False, phone="+16025550188")
+    r = await client.post(
+        "/agent/start", json={"cartesiaCallId": "ac_in_1", "callerPhone": "+16025550188"}, headers=AUTH
+    )
+    assert r.status_code == 200 and r.json()["householdId"] == hh["_id"] and r.json()["callType"] == "inbound"
+    r = await client.post("/agent/start", json={"cartesiaCallId": "ac_unknown"}, headers=AUTH)
+    assert r.status_code == 404
+
+
 async def test_spanish_switch(client, db):
     hh = await make_household(db)
     call = Call(client, hh["_id"])
@@ -336,9 +393,24 @@ def test_call_turn_event_carries_status():
 # ── interpreter fallback ──────────────────────────────────────────────────────
 
 
+async def test_claude_is_never_called_unless_paid_models_are_allowed(monkeypatch):
+    """The team said no paid models: a Claude key alone must not turn Claude on."""
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "")
+    monkeypatch.setattr(get_settings(), "anthropic_api_key", "a")
+    monkeypatch.setattr(get_settings(), "allow_paid_models", False)
+
+    async def paid(prompt, http):
+        raise AssertionError("Claude was called")
+
+    monkeypatch.setattr(interpreter, "_claude", paid)
+    it = await interpreter.interpret("yes", stage="can_leave", goal="can_leave", record={}, recent=[])
+    assert it.source == "rules" and it.set == {"canLeave": "yes"}
+
+
 async def test_gemini_timeout_falls_back_to_claude(monkeypatch):
     monkeypatch.setattr(get_settings(), "gemini_api_key", "g")
     monkeypatch.setattr(get_settings(), "anthropic_api_key", "a")
+    monkeypatch.setattr(get_settings(), "allow_paid_models", True)
     monkeypatch.setattr(interpreter, "GEMINI_TIMEOUT_S", 0.05)
 
     async def slow(prompt, http):
@@ -358,6 +430,7 @@ async def test_gemini_timeout_falls_back_to_claude(monkeypatch):
 async def test_both_models_down_uses_rules(monkeypatch):
     monkeypatch.setattr(get_settings(), "gemini_api_key", "g")
     monkeypatch.setattr(get_settings(), "anthropic_api_key", "a")
+    monkeypatch.setattr(get_settings(), "allow_paid_models", True)
 
     async def boom(prompt, http):
         raise RuntimeError("down")

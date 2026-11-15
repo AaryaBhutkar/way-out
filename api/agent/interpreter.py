@@ -201,7 +201,7 @@ async def _gemini(prompt: str, http: httpx.AsyncClient) -> dict[str, Any]:
             "responseSchema": SCHEMA,
         },
     }
-    r = await http.post(url, params={"key": s.gemini_api_key}, json=body)
+    r = await http.post(url, headers={"x-goog-api-key": s.gemini_api_key}, json=body)  # header: URLs get logged
     r.raise_for_status()
     text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
     return json.loads(text)
@@ -240,10 +240,22 @@ def _client() -> httpx.AsyncClient:
 
 
 async def interpret(
-    text: str, *, stage: str, goal: str | None, record: dict, recent: list[dict], language: str = "en"
+    text: str,
+    *,
+    stage: str,
+    goal: str | None,
+    record: dict,
+    recent: list[dict],
+    language: str = "en",
+    use_models: bool = True,
 ) -> Interp:
-    """Gemini → Claude → rules. Never raises."""
+    """Gemini → Claude → rules. Never raises. `use_models=False` goes straight to the free rules
+    (stand-in calls and evals, so 200 simulated homes never run up a model bill)."""
     t0 = time.perf_counter()
+    if not use_models:
+        result = rules(text, goal=goal, language=language)
+        result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
+        return result
     s = get_settings()
     prompt = build_prompt(text, stage, goal, record, recent)
     result: Interp | None = None
@@ -255,7 +267,7 @@ async def interpret(
         except Exception as e:  # timeout, HTTP error, bad JSON
             log.warning("gemini failed (%s); falling back", type(e).__name__)
             fallback = True
-    if result is None and s.anthropic_api_key:
+    if result is None and s.anthropic_api_key and s.allow_paid_models:  # Claude bills; off unless approved
         try:
             data = await asyncio.wait_for(_claude(prompt, _client()), timeout=CLAUDE_TIMEOUT_S)
             result = from_json(data, "claude")
@@ -265,7 +277,7 @@ async def interpret(
             fallback = True
     if result is None:
         result = rules(text, goal=goal, language=language)
-        fallback = fallback or bool(s.gemini_api_key or s.anthropic_api_key)
+        fallback = fallback or bool(s.gemini_api_key or (s.anthropic_api_key and s.allow_paid_models))
     result.fallback = fallback
     result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
     return result
@@ -326,7 +338,11 @@ def rules(text: str, *, goal: str | None = None, language: str = "en") -> Interp
         it.emergency = "medical"
     elif _has(r"\b(flames|on fire|fire is here|house is burning|fuego aquí|se quema)\b", t):
         it.emergency = "flames"
-    if _has(r"\b(is (someone|anyone|somebody|help) coming|send (someone|help)|ride|pick me up|alguien viene)\b", t):
+    if _has(
+        r"\b(is (someone|anyone|somebody|help) coming|send (someone|help|a car|a van|a vehicle)|ride|pick me up"
+        r"|(find|get|need) (me )?(a |someone |some )?(vehicle|car|van|driver|help)|alguien viene|un carro)\b",
+        t,
+    ):
         it.flags.add("asks_ride")
     if _has(r"\b(when|how long|how soon|what time|cuándo|cuando)\b", t):
         it.flags.add("wants_time")
@@ -334,7 +350,7 @@ def rules(text: str, *, goal: str | None = None, language: str = "en") -> Interp
         it.flags.add("asks_what_to_do")
     if _has(r"\b(why|por qué|porque)\b", t) and "?" in t or _has(r"^(why|por qué)\b", t):
         it.flags.add("asks_why")
-    if _has(r"\b(repeat|say that again|what\?|pardon|sorry\?|repita|cómo)\b", t):
+    if _has(r"\b(repeat|say that again|pardon|repita|cómo)\b", t) or _has(r"^\W*(what|sorry|huh|excuse me)\W*\?", t):
         it.flags.add("asks_repeat")
     if _has(r"\b(bye|goodbye|hang up|adiós|adios)\b", t):
         it.flags.add("goodbye")
@@ -392,13 +408,15 @@ def rules(text: str, *, goal: str | None = None, language: str = "en") -> Interp
     if goal == "chair_kind" and "mobility" not in it.set and it.answer != "unclear":
         it.set["mobility"] = "power_wheelchair" if it.answer == "yes" else "manual_wheelchair"
     if goal == "assistance":
-        if _has(r"\b(two|lift|dos|levantar)\b", t) and not is_no:
+        if _has(r"\b(two|2|both|lift|lifting|dos|levantar\w*)\b", t) and not is_no:
             it.set["assistance"] = "two_person_lift"
-        elif _has(r"\b(one|someone|a little|una persona|un poco)\b", t):
+        elif _has(r"\b(one|1|someone|a little|una persona|un poco)\b", t):
             it.set["assistance"] = "one_person"
         elif _has(r"\b(none|no help|nothing|ninguna)\b", t):
             it.set["assistance"] = "none"
-        elif it.answer == "no":  # simple re-ask is "does it take two people to lift?"
+        elif it.answer == "yes":  # the simple re-ask is "does it take two people to lift?"
+            it.set["assistance"] = "two_person_lift"
+        elif it.answer == "no":
             it.set["assistance"] = "one_person"
     return it
 

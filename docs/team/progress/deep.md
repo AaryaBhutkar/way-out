@@ -13,7 +13,7 @@ can see where you are on `develop` after each merge.
 | D1-04 | 4:00–5:45 | Record → request | `feat/deep` | 🟡 backend + `/calls` page done; M1 check (real call → map) waits on D1-01 | |
 | D1-05 | 6:00–8:00 | Dialer + reach ladder | `feat/deep` | ✅ stand-ins + ladder done (200 homes in ~2 min); real-phone dialing coded, untested until D1-01 | |
 | D1-06 | 8:00–10:00 | Callbacks + live status | `feat/deep` | ✅ done with stand-ins; real-phone callbacks coded, untested until D1-01 | |
-| D1-07 | 10:00–11:15 | TinyFish SET trigger | `feat/deep` | 🟡 built + tested with a fake TinyFish; live check needs a public `/drill` URL | |
+| D1-07 | 10:00–11:15 | TinyFish SET trigger | `feat/deep` | ✅ live: TinyFish read the Vercel /drill page and flipped zone 15 READY → SET → READY (2026-11-15 03:48 UTC, 4 free reads) | |
 | D1-08 | 11:15–12:15 | Dedupe + kiosk | `feat/deep` | 🟡 built; Gemini embeddings unused until a key is set; kiosk call waits on Cartesia | |
 | D1-09 | 12:15–1:00 | Evals + /system | `feat/deep` | 🟡 evals + /system built with real numbers (rule interpreter); re-run with Gemini; Claude judge not run (cost) | |
 
@@ -59,4 +59,7 @@ can see where you are on `develop` after each merge.
   answers, 27% on the personas' own unprompted words (the rule parser can't handle free speech; this is the number
   Gemini should raise). Corrections caught 2/2 (direct answers), 0/2 (own words). Latency p50 0.3 ms is code only,
   no model, so it is **not** a voice-latency number for Devpost. Real latency needs Gemini + a real call.
+- D1-07 live check (03:47–03:48 UTC): armed on zone_oak_creek_15 (no real phones, voice stand-ins off), published SET
+  on https://way-out-git-develop-yash-chardes-projects.vercel.app/drill, TinyFish Fetch read it and set the zone
+  (source `tinyfish`) within one poll; READY again the same way. Wallet unchanged ($10).
 - Known gap: personas p29 ("I'm staying") and p31 (suspicious caller) end as `left`, not `stay`/`unknown`.

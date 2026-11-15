@@ -17,18 +17,29 @@ TOKEN = os.environ.get("INTERNAL_TOKEN", "")
 
 class AgentClient:
     def __init__(self, base_url: str = API_URL, token: str = TOKEN, timeout: float = 4.0):
-        self._http = httpx.AsyncClient(
-            base_url=base_url, headers={"Authorization": f"Bearer {token}"}, timeout=timeout
-        )
+        self._http = httpx.AsyncClient(base_url=base_url, headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
 
     async def start(
-        self, household_id: str, call_type: Literal["outbound", "callback", "inbound"], call_id: str
+        self,
+        household_id: str,
+        call_type: Literal["outbound", "callback", "inbound"],
+        call_id: str,
+        *,
+        cartesia_call_id: str | None = None,
+        caller_phone: str | None = None,
     ) -> dict[str, Any]:
         r = await self._http.post(
-            "/agent/start", json={"householdId": household_id, "callType": call_type, "callId": call_id}
+            "/agent/start",
+            json={
+                "householdId": household_id or None,
+                "callType": call_type,
+                "callId": call_id,
+                "cartesiaCallId": cartesia_call_id,
+                "callerPhone": caller_phone,
+            },
         )
         r.raise_for_status()
-        return r.json()  # {say: [str], stage}
+        return r.json()  # {say: [str], stage, callId?, householdId?, callType?}
 
     async def turn(self, call_id: str, household_id: str, text: str, language: str = "en") -> dict[str, Any]:
         r = await self._http.post(

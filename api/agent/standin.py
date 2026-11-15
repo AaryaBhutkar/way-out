@@ -21,6 +21,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api.agent import session
+from api.core.config import get_settings
 from api.sim import data as sim_data  # persona file loader (data/personas.json, with built-in fallbacks)
 
 MAX_TURNS = 40
@@ -203,7 +204,14 @@ async def run_call(
             break
         if turn_delay_s:
             await asyncio.sleep(turn_delay_s)
-        out = await session.turn(db, call_id, household_id, resident.answer(agent.get("goal")), resident.lang)
+        out = await session.turn(
+            db,
+            call_id,
+            household_id,
+            resident.answer(agent.get("goal")),
+            resident.lang,
+            use_models=get_settings().standin_use_models,  # off by default: no model bill for 200 homes
+        )
         if out.get("done"):
             break
     return out
