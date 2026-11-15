@@ -25,12 +25,14 @@
 | 0:45 | Rosa asks “Is someone coming?” | Let the agent’s honest answer play in full. |
 | 0:55 | Press A to approve, then driver phone taps Accept, then Rosa’s phone rings | “Approval is silent. Only when a driver accepts does Rosa hear a name and a time.” |
 | 1:20 | SR 89A closes, the ride is revoked, Rosa is told, the neighbor accepts, the late tap is rejected | “When the road closes, she hears the truth at once, and a neighbor takes the run.” |
-| 1:45 | `/system` page with **SIMULATED** visible | “In simulation, [__]% picked up on time vs [__]% for greedy dispatch.” |
+| 1:45 | `/system` page with **SIMULATED** visible | “In simulation, 91% of the people who needed a ride got picked up in time, versus 48% with today’s 911 queue.” |
 | 1:55 | Close slide | “The van was ready. Nobody called. Everyone deserves a way out.” |
 
 Upload to YouTube as **Unlisted**, title “Way Out — SunHacks 2026”, and paste the link into Devpost (A-11).
 
 ## A-12: expo, 12:00–2:00 PM
+
+**"Your hack, not your slides, is judged"** (opening slides). At the table: the story in 20 seconds with **one slide at most**, then go straight to the live product. The full deck is for the video and Devpost only.
 
 **Your first 20 seconds, every time:** the Rory Sykes lines from `story.md`, then “Way Out calls every home at once and gets the people who can’t leave matched with someone who can take them.”
 
