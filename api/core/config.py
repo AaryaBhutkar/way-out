@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.8-flash"
     anthropic_api_key: str = ""
+    # Claude bills per token. The team said no paid models, so Claude is never called unless this is true.
+    allow_paid_models: bool = False
     claude_fallback_model: str = "claude-sonnet-5-5"
     claude_judge_model: str = "claude-opus-5-5"
     # Best Use of AWS (D1-10): Claude through Amazon Bedrock. AWS keys come from the standard AWS_* env vars.

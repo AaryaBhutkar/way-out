@@ -267,7 +267,7 @@ async def interpret(
         except Exception as e:  # timeout, HTTP error, bad JSON
             log.warning("gemini failed (%s); falling back", type(e).__name__)
             fallback = True
-    if result is None and s.anthropic_api_key:
+    if result is None and s.anthropic_api_key and s.allow_paid_models:  # Claude bills; off unless approved
         try:
             data = await asyncio.wait_for(_claude(prompt, _client()), timeout=CLAUDE_TIMEOUT_S)
             result = from_json(data, "claude")
@@ -277,7 +277,7 @@ async def interpret(
             fallback = True
     if result is None:
         result = rules(text, goal=goal, language=language)
-        fallback = fallback or bool(s.gemini_api_key or s.anthropic_api_key)
+        fallback = fallback or bool(s.gemini_api_key or (s.anthropic_api_key and s.allow_paid_models))
     result.fallback = fallback
     result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
     return result

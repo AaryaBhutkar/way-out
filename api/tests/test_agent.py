@@ -336,9 +336,24 @@ def test_call_turn_event_carries_status():
 # ── interpreter fallback ──────────────────────────────────────────────────────
 
 
+async def test_claude_is_never_called_unless_paid_models_are_allowed(monkeypatch):
+    """The team said no paid models: a Claude key alone must not turn Claude on."""
+    monkeypatch.setattr(get_settings(), "gemini_api_key", "")
+    monkeypatch.setattr(get_settings(), "anthropic_api_key", "a")
+    monkeypatch.setattr(get_settings(), "allow_paid_models", False)
+
+    async def paid(prompt, http):
+        raise AssertionError("Claude was called")
+
+    monkeypatch.setattr(interpreter, "_claude", paid)
+    it = await interpreter.interpret("yes", stage="can_leave", goal="can_leave", record={}, recent=[])
+    assert it.source == "rules" and it.set == {"canLeave": "yes"}
+
+
 async def test_gemini_timeout_falls_back_to_claude(monkeypatch):
     monkeypatch.setattr(get_settings(), "gemini_api_key", "g")
     monkeypatch.setattr(get_settings(), "anthropic_api_key", "a")
+    monkeypatch.setattr(get_settings(), "allow_paid_models", True)
     monkeypatch.setattr(interpreter, "GEMINI_TIMEOUT_S", 0.05)
 
     async def slow(prompt, http):
@@ -358,6 +373,7 @@ async def test_gemini_timeout_falls_back_to_claude(monkeypatch):
 async def test_both_models_down_uses_rules(monkeypatch):
     monkeypatch.setattr(get_settings(), "gemini_api_key", "g")
     monkeypatch.setattr(get_settings(), "anthropic_api_key", "a")
+    monkeypatch.setattr(get_settings(), "allow_paid_models", True)
 
     async def boom(prompt, http):
         raise RuntimeError("down")
