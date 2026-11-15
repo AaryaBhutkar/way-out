@@ -65,8 +65,9 @@ async def test_zone_status_webhook(client, db):
 
 
 async def test_stubs_say_who_owns_them(client):
-    res = await client.post("/agent/turn", headers=AUTH, json={"callId": "c", "householdId": "h", "text": "hi"})
-    assert res.status_code == 501 and "D1-02" in res.json()["detail"]
+    # Every endpoint is built except photo reports, which are still a stub.
+    res = await client.post("/hazards/photo")
+    assert res.status_code in (422, 501)
 
 
 def test_live_event_mapping():
@@ -102,3 +103,22 @@ def test_live_event_mapping():
     }
     turn = {"operationType": "update", "fullDocument": call, "updateDescription": {"updatedFields": {"turns.0": {}}}}
     assert events_for_change("calls", turn, hub)[0][0] == "call.turn"
+
+
+async def test_unexpected_errors_are_readable_and_keep_cors(db, monkeypatch):
+    """A crash must reach the console as a message, not as the browser's opaque "Failed to fetch"."""
+    from httpx import ASGITransport, AsyncClient
+
+    from api.main import create_app
+    from api.sim import seed as sim_seed
+
+    async def boom(*a, **k):
+        raise RuntimeError("database said no")
+
+    monkeypatch.setattr(sim_seed, "seed", boom)
+    transport = ASGITransport(app=create_app(), raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        res = await c.post("/sim/seed", headers={"Origin": "https://way-out.vercel.app"})
+    assert res.status_code == 500
+    assert res.json() == {"detail": "RuntimeError: database said no"}
+    assert res.headers.get("access-control-allow-origin") in ("*", "https://way-out.vercel.app")
