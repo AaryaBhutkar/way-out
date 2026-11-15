@@ -156,6 +156,7 @@ Auth: dashboard and driver endpoints are open in demo mode. `/agent/*` and webho
 | POST | `/sim/seed` | `?scenario=pocket-fire&homes=200&seed=42&census=none\|instant&firstArrivalMin=90` → replaces the simulated world: 200 homes, 8 vehicles, 2 shelters, 2 zones. Real households stay | Yash |
 | POST | `/sim/census` | answer every unreached simulated home from its persona (no calls) → `{requests}` *(added D2-02)* | Yash |
 | POST / GET | `/sim/control` | `{standIns: {voice, drivers, approval}: bool}` (partial updates) → current `standIns` | Yash |
+| GET | `/system/metrics` (shape, D1-09) | → `{live: {calls, latencyMs: {realPhone, standIns}, interpreter, fallbacks, acks}, evals: data/eval-results.json \| null, dispatch: data/sim-results.json \| null, census: {reach, openRequests, duplicatesMerged}, audit: [..40]}` | Deep |
 | GET | `/system/metrics` | → latency p50/p95, honesty, accuracy, dispatch results (`data/sim-results.json` from Yash) | Deep |
 | GET | `/health` | → `{ok, env, version, gitSha}` | Prem |
 
