@@ -12,7 +12,7 @@ can see where you are on `develop` after each merge.
 | D1-03 | 2:30–4:00 | Interpreter + honesty | `feat/deep` | 🟡 code + tests done; needs a live Gemini/Claude key check | |
 | D1-04 | 4:00–5:45 | Record → request | `feat/deep` | 🟡 backend + `/calls` page done; M1 check (real call → map) waits on D1-01 | |
 | D1-05 | 6:00–8:00 | Dialer + reach ladder | `feat/deep` | ✅ stand-ins + ladder done (200 homes in ~2 min); real-phone dialing coded, untested until D1-01 | |
-| D1-06 | 8:00–10:00 | Callbacks + live status | `feat/D1-06-callbacks-live-status` | ⬜ todo | |
+| D1-06 | 8:00–10:00 | Callbacks + live status | `feat/deep` | ✅ done with stand-ins; real-phone callbacks coded, untested until D1-01 | |
 | D1-07 | 10:00–11:15 | TinyFish SET trigger | `feat/D1-07-tinyfish-set-trigger` | ⬜ todo | |
 | D1-08 | 11:15–12:15 | Dedupe + kiosk | `feat/D1-08-dedupe-kiosk` | ⬜ todo | |
 | D1-09 | 12:15–1:00 | Evals + /system | `feat/D1-09-evals-system` | ⬜ todo | |
@@ -37,4 +37,7 @@ can see where you are on `develop` after each merge.
   Real phones need `CARTESIA_API_KEY`, `CARTESIA_AGENT_ID`, `CARTESIA_FROM_NUMBER_ID`; the Line agent gets
   `householdId` + `callId` as dynamic variables. Demo knob: `REACH_LADDER_SCALE=0.1` shortens the 2/5/3-minute waits.
 - Any home without a car now gets a request (Aarya's personas expect it), not only no car + mobility limits.
+- Callbacks (D1-06): `api/agent/callbacks.py` runs inside the API. Status read when the call connects, never from
+  the queue, so a stale callback can't announce an old ETA. Resident already on a call → told there, no second call.
+  No answer → one retry after 60 s → `unanswered`. The Line agent must pass `callType: callback` to `/agent/start`.
 - Known gap: personas p29 ("I'm staying") and p31 (suspicious caller) end as `left`, not `stay`/`unknown`.

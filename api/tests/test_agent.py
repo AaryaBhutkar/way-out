@@ -371,3 +371,5 @@ def test_status_templates_match_contract():
     )
     assert templates.status_line("en", "en_route", {"name": "Luis", "eta": 4.4}) == "Luis is about 4 minutes away."
     assert templates.status_line("en", "driver_accepted", None) == templates.STATUS["en"]["driver_accepted_no_detail"]
+    one = templates.status_line("en", "driver_accepted", {"name": "Lena", "eta": 1.4, "vehicleKind": "neighbor"})
+    assert "is 1 minute away" in one and "minutes" not in one
