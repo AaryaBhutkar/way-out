@@ -70,12 +70,12 @@ async def start(db: AsyncIOMotorDatabase, household_id: str, call_type: str, cal
     await db.calls.update_one(
         {"_id": call_id},
         {
-            "$set": {"agent": state, "language": state["language"]},
+            # The dialer may have created this call doc when it rang; picking up makes it answered.
+            "$set": {"agent": state, "language": state["language"], "outcome": "answered"},
             "$setOnInsert": {
                 "householdId": household_id,
                 "direction": call_type,
                 "startedAt": now,
-                "outcome": "answered",
                 "turns": [],
             },
         },

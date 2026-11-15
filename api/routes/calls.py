@@ -7,11 +7,13 @@ from pydantic import BaseModel
 from pymongo import DESCENDING
 
 from api import requests as rq
+from api.agent import dialer
 from api.core.db import get_db
-from api.routes._util import not_yet, out
+from api.routes._util import out
 
 router = APIRouter(prefix="/calls", tags=["calls"])
 
+UNANSWERED = ("no_answer", "voicemail", "failed")
 HOUSEHOLD_FIELDS = ("address", "simulated", "reach", "role", "record", "corrections", "language", "zoneId")
 
 
@@ -29,7 +31,7 @@ def _summary(call: dict[str, Any], hh: dict[str, Any] | None) -> dict[str, Any]:
         "updatedAt": call.get("updatedAt") or call.get("startedAt"),
         "outcome": call.get("outcome"),
         "stage": agent.get("stage"),
-        "done": bool(agent.get("done")),
+        "done": bool(agent.get("done") or call.get("endedAt") or call.get("outcome") in UNANSWERED),
         "escalations": agent.get("escalations") or [],
         "turnCount": len(turns),
         "lastText": last.get("text"),
@@ -68,5 +70,10 @@ class DialBody(BaseModel):
 
 @router.post("/dial")
 async def dial(body: DialBody) -> dict:
-    """→ {callId}. Real call via Cartesia for real phones, stand-in for simulated homes."""
-    raise not_yet("D1-05", "Deep")
+    """→ {callId}. Real call via Cartesia for real phones, stand-in for simulated homes.
+    404 unknown household · 409 already ringing / in a call · 503 Cartesia not configured · 502 Cartesia refused."""
+    try:
+        call_id = await dialer.dial(get_db(), body.householdId)
+    except dialer.DialError as e:
+        raise HTTPException(e.status, str(e)) from e
+    return {"callId": call_id}
