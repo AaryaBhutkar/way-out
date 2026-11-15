@@ -12,7 +12,8 @@ import logging
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api import assignments
-from api.agent import dialer
+from api.agent import callbacks as callback_worker
+from api.agent import dialer, zonewatch
 from api.dispatch import loop as dispatch_loop
 from api.live import WATCHED, watch_collection
 
@@ -37,6 +38,8 @@ def start(db: AsyncIOMotorDatabase) -> list[asyncio.Task]:
     tasks += [asyncio.create_task(watch_collection(db, c), name=f"watch-{c}") for c in WATCHED]
     tasks.append(asyncio.create_task(dispatch_loop.run(db), name="solver-loop"))  # D2-04
     tasks.append(asyncio.create_task(dialer.run(db), name="dialer"))  # D1-05
+    tasks.append(asyncio.create_task(callback_worker.run(db), name="callbacks"))  # D1-06
+    tasks.append(asyncio.create_task(zonewatch.run(db), name="tinyfish-watch"))  # D1-07
     return tasks
 
 
