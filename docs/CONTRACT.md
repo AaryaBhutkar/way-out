@@ -125,6 +125,7 @@ Auth: dashboard and driver endpoints are open in demo mode. `/agent/*` and webho
 |---|---|---|---|
 | POST | `/agent/start` | `{householdId, callType: outbound\|callback\|inbound, callId}` → `{say: [str], stage}` | Deep |
 | POST | `/agent/turn` | `{callId, householdId, text, language}` → `{say: [str], stage, done, record, requestStatus}` | Deep |
+| POST | `/calls/kiosk` | `{householdId, phone: +1XXXXXXXXXX}` → `{callId, householdId, address}`: the house becomes the judge's real phone, then is dialed. 429 above 6/min (added D1-08) | Deep |
 | POST | `/calls/dial` | `{householdId}` → `{callId}` (real call via Cartesia, or stand-in) | Deep |
 | GET | `/calls?limit=` | → `[call summary + household]`, most recently active first (added D1-04) | Deep |
 | GET | `/calls/{id}` | → call summary + `turns` + open `request` (added D1-04) | Deep |

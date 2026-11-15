@@ -14,7 +14,7 @@ can see where you are on `develop` after each merge.
 | D1-05 | 6:00–8:00 | Dialer + reach ladder | `feat/deep` | ✅ stand-ins + ladder done (200 homes in ~2 min); real-phone dialing coded, untested until D1-01 | |
 | D1-06 | 8:00–10:00 | Callbacks + live status | `feat/deep` | ✅ done with stand-ins; real-phone callbacks coded, untested until D1-01 | |
 | D1-07 | 10:00–11:15 | TinyFish SET trigger | `feat/deep` | 🟡 built + tested with a fake TinyFish; live check needs a public `/drill` URL | |
-| D1-08 | 11:15–12:15 | Dedupe + kiosk | `feat/D1-08-dedupe-kiosk` | ⬜ todo | |
+| D1-08 | 11:15–12:15 | Dedupe + kiosk | `feat/deep` | 🟡 built; Gemini embeddings unused until a key is set; kiosk call waits on Cartesia | |
 | D1-09 | 12:15–1:00 | Evals + /system | `feat/D1-09-evals-system` | ⬜ todo | |
 
 ## How to work
@@ -48,4 +48,10 @@ can see where you are on `develop` after each merge.
   https://coconino.az.gov/eminfo ("Emergency Management Information", ~4,900 chars). It showed Stage 1 fire
   restrictions and no zone at SET or GO, so the watcher correctly saw no status. Free Search also finds the county's
   Ready-Set-Go and Evacuation Zones pages (coconino.az.gov/3129, /3124). Read-only: nothing was changed.
+- Dedupe (D1-08): homes within 50 m with the same address (normalized) → the newer request gets `dupOf`, needs are
+  merged into the older one. With `GEMINI_API_KEY`, Gemini embeddings (cosine > 0.9) also catch differently worded
+  addresses. Atlas `$vectorSearch` is a TODO for when the cluster is up. A duplicate caller gets no callbacks yet.
+- Kiosk (D1-08): `/` shows the homes; `POST /calls/kiosk {householdId, phone}` makes that house the judge's real
+  phone (record reset, stand-in request closed) and dials it. 6 claims/min max; no phone numbers in the audit log.
+  Privacy: `GET /households` (Prem's route) returns phone numbers, so a judge's number is visible there. Flag for Prem.
 - Known gap: personas p29 ("I'm staying") and p31 (suspicious caller) end as `left`, not `stay`/`unknown`.

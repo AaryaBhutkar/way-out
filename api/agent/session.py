@@ -16,7 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api import audit
 from api import requests as rq
-from api.agent import flow, honesty
+from api.agent import dedupe, flow, honesty
 from api.agent.interpreter import interpret
 from api.core.util import utcnow
 from api.models import Record
@@ -212,6 +212,8 @@ async def sync_request(
             req = await rq.upsert_for_household(
                 db, hh["_id"], need=need, deadline_at=hh.get("deadlineAt"), priority=priority
             )
+            if await dedupe.check(db, req):  # same home already has a request (D1-08)
+                req = await db.requests.find_one({"_id": req["_id"]})
     elif req is not None and req["status"] == "received" and record.get("canLeave") == "yes":
         # A correction: they can leave after all. Nobody has been offered this ride yet.
         req = await rq.transition(db, req["_id"], "closed", reason="resident can leave", by="agent")

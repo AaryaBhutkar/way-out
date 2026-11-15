@@ -73,6 +73,9 @@ export const api = {
       "/plans/solve",
       { solver },
     ),
+  // kiosk (D1-08): this house becomes the judge's phone, then we call it
+  kiosk: (householdId: string, phone: string) =>
+    call<{ callId: string; householdId: string; address: string }>("POST", "/calls/kiosk", { householdId, phone }),
   // call floor (D1-04)
   calls: (limit = 100) => call<CallSummary[]>("GET", `/calls?limit=${limit}`),
   call: (id: string) => call<CallDetail>("GET", `/calls/${encodeURIComponent(id)}`),
