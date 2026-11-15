@@ -6,7 +6,7 @@ name: deploy
 on:
   push:
     branches: [develop, staging, main]
-    paths: ["api/**", "infra/**", ".github/workflows/deploy.yml"]
+    paths: ["data/**", "api/**", "infra/**", ".github/workflows/deploy.yml"]
   workflow_dispatch:
     inputs:
       env:
@@ -22,9 +22,6 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/wayout-api
-
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -33,6 +30,7 @@ jobs:
       ghenv: ${{ steps.p.outputs.ghenv }}
       tag: ${{ steps.p.outputs.tag }}
       build: ${{ steps.p.outputs.build }}
+      image: ${{ steps.p.outputs.image }}
     steps:
       - id: p
         run: |
@@ -50,6 +48,8 @@ jobs:
           echo "ghenv=$GHENV" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          # Image names must be lowercase (the repo owner may have capitals).
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/wayout-api" >> "$GITHUB_OUTPUT"
 
   build:
     needs: plan
@@ -69,11 +69,12 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: api
+          build-contexts: data=data  # scenario + personas for /sim/seed → /app/data
           push: true
           build-args: GIT_SHA=${{ needs.plan.outputs.tag }}
           tags: |
-            ${{ env.IMAGE }}:${{ needs.plan.outputs.tag }}
-            ${{ env.IMAGE }}:${{ needs.plan.outputs.env }}
+            ${{ needs.plan.outputs.image }}:${{ needs.plan.outputs.tag }}
+            ${{ needs.plan.outputs.image }}:${{ needs.plan.outputs.env }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -86,8 +87,23 @@ jobs:
       contents: read
       packages: read
     steps:
+      # Until the Vultr VM exists, skip instead of failing: the image is still built and pushed.
+      - name: VM configured?
+        id: vm
+        env:
+          HOST: ${{ secrets.VULTR_HOST }}
+          KEY: ${{ secrets.VULTR_SSH_KEY }}
+        run: |
+          if [ -n "$HOST" ] && [ -n "$KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Deploy skipped::VULTR_HOST / VULTR_SSH_KEY not set yet. Image ${{ needs.plan.outputs.image }}:${{ needs.plan.outputs.tag }} is built; add the secrets (infra/README.md, Go-live checklist) and re-run."
+          fi
       - uses: actions/checkout@v4
+        if: steps.vm.outputs.ready == 'true'
       - name: Copy compose files to the VM
+        if: steps.vm.outputs.ready == 'true'
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VULTR_HOST }}
@@ -97,6 +113,7 @@ jobs:
           target: /opt/wayout
           strip_components: 1
       - name: Compose up
+        if: steps.vm.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1.2.0
         env:
           GHCR_USER: ${{ github.actor }}
