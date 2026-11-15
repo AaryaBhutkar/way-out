@@ -105,7 +105,7 @@ async def test_solve_proposes_for_every_reachable_rider(db):
     res = await loop.solve_once(db)
     assert res["version"] == 1 and res["created"] == res["proposals"] > 0
     plan = await db.plans.find_one({"version": 1})
-    assert plan["solver"] == "greedy" and plan["solveMs"] >= 0
+    assert plan["solver"] == "batched" and plan["solveMs"] >= 0
 
     fleet = [v async for v in db.vehicles.find({})]
 
@@ -220,4 +220,25 @@ async def test_m1_flow_over_http(client, db):
     assert (await client.post(f"/assignments/{first['id']}/approve")).status_code == 200
     req = await db.requests.find_one({"_id": first["requestId"]})
     assert req["status"] == "approved"
-    assert (await client.post("/plans/solve")).json()["requested"] == "greedy"
+    assert (await client.post("/plans/solve")).json()["requested"] == "batched"
+
+
+async def test_duplicate_proposals_for_one_request_are_cleaned_up(db):
+    """Two solvers racing (or a reseed mid-solve) can leave 2+ proposals for one request: keep one."""
+    await seed.seed(db, homes=60, census="instant", rng_seed=3)
+    await loop.solve_once(db)
+    a = await db.assignments.find_one({"status": "proposed"})
+    for n in range(2):
+        await db.assignments.insert_one({**a, "_id": f"as_dup{n}", "planVersion": 0})
+    await loop.solve_once(db)
+    live = [x async for x in db.assignments.find({"requestId": a["requestId"], "status": "proposed"})]
+    assert len(live) == 1
+
+
+async def test_latest_plan_skips_offers_for_reseeded_requests(client, db):
+    await seed.seed(db, homes=60, census="instant", rng_seed=3)
+    await loop.solve_once(db)
+    a = await db.assignments.find_one({"status": "proposed"})
+    await db.assignments.insert_one({**a, "_id": "as_orphan", "requestId": "rq_gone"})
+    rows = (await client.get("/plans/latest")).json()["assignments"]
+    assert rows and all(r["requestId"] != "rq_gone" for r in rows)

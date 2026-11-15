@@ -1,4 +1,4 @@
-"""D2-06: a closure (or a late van) takes back only the pickup that can't be kept, tells the resident, and
+"""Revoke: a closure (or a late van) takes back only the pickup that can't be kept, tells the resident, and
 re-offers it to a vehicle that can make it. The rest of the driver's run stays as accepted."""
 
 import math
@@ -24,6 +24,7 @@ async def _world(db):
     await seed.seed(db, homes=1)
     await db.households.delete_many({})
     await db.vehicles.update_many({}, {"$set": {"status": "offline"}})
+    await db.hazards.delete_one({"_id": "fire_run"})  # these tests are about closures, not the fire buffer
 
 
 async def _home(db, ch, minutes_left=240.0):

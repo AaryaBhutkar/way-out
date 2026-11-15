@@ -8,11 +8,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from api import live, workers
 from api.core import db as dbmod
 from api.core.config import VERSION, get_settings
+from api.hazard import tiger
 from api.routes import (
     agent,
     assignments,
@@ -20,6 +22,7 @@ from api.routes import (
     hazards,
     health,
     households,
+    persona,
     plans,
     ride_requests,
     roads,
@@ -28,23 +31,25 @@ from api.routes import (
     vehicles,
     zones,
 )
+from api.sim import world
 
 log = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 ROUTERS = [
-    # core (Prem → Yash)
+    # core
     health,
     households,
     ride_requests,
     assignments,
     live,
-    # resident side (Deep)
+    # resident side
     agent,
     calls,
+    persona,
     zones,
     system,
-    # responder side (Yash)
+    # responder side
     plans,
     vehicles,
     roads,
@@ -57,9 +62,11 @@ ROUTERS = [
 async def lifespan(app: FastAPI):
     db = dbmod.get_db()
     await dbmod.ensure_indexes(db)
+    await world.load(db)  # which scenario (canyon or North Scottsdale) the stored world is in
     tasks = workers.start(db) if get_settings().run_workers else []
     yield
     await workers.stop(tasks)
+    await tiger.close()
     dbmod.close()
 
 
@@ -97,6 +104,8 @@ class ErrorsAsJson:
 def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(title="Way Out API", version=VERSION, lifespan=lifespan)
+    # gzip JSON over ~1 KB: the homes list is ~3 MB raw at 6,000 homes, ~10x smaller compressed
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
     app.add_middleware(ErrorsAsJson)  # added first = inside CORS, so 500s still carry CORS headers
     app.add_middleware(
         CORSMiddleware,

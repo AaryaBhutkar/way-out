@@ -1,4 +1,4 @@
-"""Greedy dispatcher (D2-04). Pure: no database, no clock. The loop (api/dispatch/loop.py) does the I/O.
+"""Greedy dispatcher. Pure: no database, no clock. The loop (api/dispatch/loop.py) does the I/O.
 
 1. Sort open requests: riders being reassigned first, then earliest deadline, then priority.
 2. For each, try every compatible vehicle (seats, wheelchair, stretcher, crew, lift). The pickup goes
@@ -20,7 +20,7 @@ LonLat = tuple[float, float]
 Travel = Callable[[LonLat, LonLat], float]
 
 UNLOAD_MIN = 5.0
-# Boarding minutes, docs/story/impact.md middle column: walks 3 / walker 6 / wheelchair 10 / two-person lift 15
+# Boarding minutes, docs/simulation.md middle column: walks 3 / walker 6 / wheelchair 10 / two-person lift 15
 BOARD_MIN = {"walks": 3.0, "walker": 6.0, "wheelchair": 10.0, "lift": 15.0, "stretcher": 15.0}
 
 
@@ -58,8 +58,24 @@ class Need:
         return (board or BOARD_MIN)[self.kind()]
 
     def weight(self) -> float:
-        """Need-weighted waiting: heavier needs count more."""
-        return 1.0 + self.wheelchair + 2 * self.stretcher + (0.5 if self.lift else 0)
+        """Need-weighted waiting: heavier needs count more. People who can't walk out are who this system is
+        for: few vehicles can carry them and boarding takes 10-15 min, so each minute they wait costs more."""
+        return 1.0 + 2 * self.wheelchair + 4 * self.stretcher + (1.0 if self.lift else 0)
+
+    def mobility(self) -> bool:
+        """Can't walk to a car: wheelchair, lift or stretcher."""
+        return bool(self.wheelchair or self.stretcher or self.lift)
+
+    def head_start_min(self) -> float:
+        """Planned this many minutes earlier than their deadline alone says (see priority_key)."""
+        return 45.0 if self.stretcher else 30.0 if (self.wheelchair or self.lift) else 0.0
+
+
+def priority_key(r: "Rider") -> tuple:
+    """Who gets planned first: riders being reassigned, then by deadline, with a head start for people who
+    can't walk out (their vehicles are few and boarding is slow, so they must be first in line)."""
+    dl = r.deadline_min if r.deadline_min is not None else math.inf
+    return (not r.reassigning, dl - r.need.head_start_min(), -r.priority)
 
 
 @dataclass
@@ -150,9 +166,17 @@ def _nearest_shelter(loc: LonLat, shelters: list[Shelter], riders: int, travel: 
 
 
 def _visit(
-    v: Vehicle, st: _State, r: Rider, shelters: list[Shelter], travel: Travel, board: dict[str, float] | None = None
+    v: Vehicle,
+    st: _State,
+    r: Rider,
+    shelters: list[Shelter],
+    travel: Travel,
+    board: dict[str, float] | None = None,
+    *,
+    allow_hop: bool = True,
 ) -> tuple[_State, float] | None:
-    """Drive to `r` (dropping off first if full). → (new state, pickup time) or None if unreachable."""
+    """Drive to `r` (dropping off first if full). → (new state, pickup time) or None if unreachable.
+    `allow_hop=False`: a full vehicle can't take `r` (no shelter round trip first)."""
     n = r.need
     s = _State(**st.__dict__)
     full = (
@@ -160,6 +184,8 @@ def _visit(
         or s.wheelchair + n.wheelchair > v.wheelchair
         or (s.stretcher + n.stretcher > v.stretcher)
     )
+    if full and not allow_hop:
+        return None
     if full and s.seats:
         hop = _nearest_shelter(s.loc, shelters, s.seats, travel)
         if hop is None:
@@ -184,15 +210,21 @@ def _visit(
     return s, pickup
 
 
-def plan(
-    riders: list[Rider],
-    vehicles: list[Vehicle],
-    shelters: list[Shelter],
-    travel: Travel,
-    board: dict[str, float] | None = None,
-) -> Result:
-    """`board` overrides the boarding minutes (the impact simulation runs low/middle/high)."""
-    # v0: a shelter is usable while it has room for the load; room isn't drawn down within one plan.
+@dataclass
+class Committed:
+    """Every vehicle's committed run played out: where each one is free to take new pickups."""
+
+    states: dict[str, "_State"]
+    committed_eta: dict[str, float]
+    unreachable: list[str]
+    rescuable: list[str]
+
+
+def play_committed(
+    vehicles: list[Vehicle], shelters: list[Shelter], travel: Travel, board: dict[str, float] | None = None
+) -> Committed:
+    """Play out the accepted + offered runs (never reordered). Also finds committed pickups that are now
+    late but another vehicle (after its own run) would make in time: candidates to move."""
     unreachable: list[str] = []
     committed_eta: dict[str, float] = {}
     late: list[tuple[Rider, str]] = []
@@ -221,10 +253,24 @@ def plan(
             if nxt is not None and r.deadline_min is not None and nxt[1] <= r.deadline_min:
                 rescuable.append(r.id)
                 break
+    return Committed(states, committed_eta, unreachable, rescuable)
+
+
+def plan(
+    riders: list[Rider],
+    vehicles: list[Vehicle],
+    shelters: list[Shelter],
+    travel: Travel,
+    board: dict[str, float] | None = None,
+) -> Result:
+    """`board` overrides the boarding minutes (the impact simulation runs low/middle/high)."""
+    # v0: a shelter is usable while it has room for the load; room isn't drawn down within one plan.
+    base = play_committed(vehicles, shelters, travel, board)
+    states, committed_eta, unreachable, rescuable = base.states, base.committed_eta, base.unreachable, base.rescuable
 
     order = sorted(
         riders,
-        key=lambda r: (not r.reassigning, r.deadline_min if r.deadline_min is not None else math.inf, -r.priority),
+        key=priority_key,
     )
     proposals: list[Proposal] = []
     deferred: list[Rider] = []

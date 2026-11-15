@@ -1,4 +1,4 @@
-"""Stand-in drivers (D2-05). On when `simControl.standIns.drivers` is true.
+"""Stand-in drivers. On when `simControl.standIns.drivers` is true.
 
 Every simulated vehicle that no phone has claimed (no driver-app presence in the last 2 min):
 - accepts an offer 6 s after it was offered (through api.assignments.accept: same atomic rules),
@@ -19,6 +19,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api import assignments as asg
+from api.core.bulk import set_many
 from api.core.util import aware, utcnow
 from api.dispatch import greedy
 from api.dispatch.loop import road_with_closures
@@ -61,11 +62,19 @@ def step_toward(road: Road, here: tuple[float, float], there: tuple[float, float
     → (new position, reached?) or None when a closure blocks the way."""
     if meters(here, there) <= max(AT_DOOR_M, 1e-9):
         return there, True
-    ch, ct = road.project(here)[0], road.project(there)[0]
+    if hasattr(road, "step_toward"):  # the Phoenix street grid moves along its own L-shaped paths
+        return road.step_toward(here, there, step_m)
+    (ch, off), ct = road.project(here), road.project(there)[0]
     if road.blocked(ch, ct):
         return None
-    if abs(ct - ch) > 2.0:  # drive along the road (snapping onto it)
-        nc = ch + math.copysign(min(step_m, abs(ct - ch)), ct - ch)
+    if abs(ct - ch) > 2.0:
+        if off > 2.0:  # parked at a house: drive the side street out to SR 89A first, at the same speed
+            on_road = road.point_at(ch)
+            if off <= step_m:
+                return on_road, False
+            f = step_m / meters(here, on_road)
+            return (here[0] + (on_road[0] - here[0]) * f, here[1] + (on_road[1] - here[1]) * f), False
+        nc = ch + math.copysign(min(step_m, abs(ct - ch)), ct - ch)  # along the road
         return road.point_at(nc), False
     left = meters(here, there)  # side street to the door
     if left <= step_m:
@@ -84,33 +93,69 @@ async def tick(db: AsyncIOMotorDatabase, *, now: datetime | None = None, dt_s: f
     shelters = [s async for s in db.shelters.find({})]
     step_m = ROAD_KMH * 1000 / 3600 * dt_s * speedup
 
+    # Batched: a handful of queries per tick for the whole fleet, not five per vehicle (30 vans × 1 Hz
+    # was ~150 database calls a second, over Atlas's free-tier limit).
+    fleet = []
     async for v in db.vehicles.find({"simulated": True, "status": {"$ne": "offline"}}):
         seen = aware(v.get("phoneSeenAt"))
         if seen and (now - seen).total_seconds() < PHONE_FRESH_S:
             continue  # a real phone drives this one
         if (v.get("safety") or {}).get("state") in ("man_down", "sos"):
             continue
+        fleet.append(v)
+    if not fleet:
+        return stats
+    ids = [v["_id"] for v in fleet]
 
-        async for a in db.assignments.find({"vehicleId": v["_id"], "status": "offered"}):
-            offered = aware(a.get("offeredAt"))
-            if offered and (now - offered).total_seconds() >= ACCEPT_AFTER_S:
-                if (await asg.accept(db, a["_id"], now=now))["result"] == "accepted":
-                    stats["accepted"] += 1
+    async for a in db.assignments.find({"vehicleId": {"$in": ids}, "status": "offered"}):
+        offered = aware(a.get("offeredAt"))
+        if offered and (now - offered).total_seconds() >= ACCEPT_AFTER_S:
+            if (await asg.accept(db, a["_id"], now=now))["result"] == "accepted":
+                stats["accepted"] += 1
 
-        here = _loc(v)
-        if here is None:
-            continue
-        run = [a async for a in db.assignments.find({"vehicleId": v["_id"], "status": "accepted"}).sort("stopOrder", 1)]
-        reqs = {r["_id"]: r async for r in db.requests.find({"_id": {"$in": [a["requestId"] for a in run]}})}
-        onboard = [a for a in run if reqs.get(a["requestId"], {}).get("status") == "arrived"]
-        nxt = next(
+    runs: dict[str, list[dict[str, Any]]] = {}
+    async for a in db.assignments.find({"vehicleId": {"$in": ids}, "status": "accepted"}).sort("stopOrder", 1):
+        runs.setdefault(a["vehicleId"], []).append(a)
+    req_ids = [a["requestId"] for run in runs.values() for a in run]
+    reqs = {r["_id"]: r async for r in db.requests.find({"_id": {"$in": req_ids}})} if req_ids else {}
+
+    def next_stop(run: list[dict[str, Any]]) -> dict[str, Any] | None:
+        return next(
             (a for a in run if reqs.get(a["requestId"], {}).get("status") in ("driver_accepted", "en_route")), None
         )
 
+    def need_of(a: dict[str, Any]) -> greedy.Need:
+        return greedy.Need.of(reqs.get(a["requestId"], {}).get("need"))
+
+    def fits_now(v: dict[str, Any], onboard: list[dict[str, Any]], nxt: dict[str, Any]) -> bool:
+        """Does the next rider fit next to the riders already on board (seats, wheelchair, stretcher)?"""
+        cap = v.get("capacity") or {}
+        rows = [need_of(a) for a in onboard] + [need_of(nxt)]
+        return (
+            sum(n.seats for n in rows) <= int(cap.get("seats", 4))
+            and sum(n.wheelchair for n in rows) <= int(cap.get("wheelchair", 0))
+            and sum(n.stretcher for n in rows) <= int(cap.get("stretcher", 0))
+        )
+
+    hh_ids = [reqs[a["requestId"]]["householdId"] for run in runs.values() if (a := next_stop(run))]
+    homes = {h["_id"]: h async for h in db.households.find({"_id": {"$in": hh_ids}}, {"location": 1})} if hh_ids else {}
+    moves: list[tuple[dict[str, Any], dict[str, Any]]] = []
+
+    for v in fleet:
+        here = _loc(v)
+        if here is None:
+            continue
+        run = runs.get(v["_id"], [])
+        onboard = [a for a in run if reqs.get(a["requestId"], {}).get("status") == "arrived"]
+        nxt = next_stop(run)
+        # The planner chains trips: when the next rider no longer fits, it planned a shelter drop-off first.
+        # Drive it the same way, so a 3-seat car never carries more than 3 (it carried the whole run before).
+        if nxt is not None and onboard and not fits_now(v, onboard, nxt):
+            nxt = None
+
         target, a_next = None, None
         if nxt is not None:
-            hh = await db.households.find_one({"_id": reqs[nxt["requestId"]]["householdId"]})
-            target, a_next = _loc(hh), nxt
+            target, a_next = _loc(homes.get(reqs[nxt["requestId"]]["householdId"])), nxt
         elif onboard and shelters:
             target = min((_loc(s) for s in shelters), key=lambda s: road.travel_min(here, s))
         if target is None:
@@ -126,19 +171,19 @@ async def tick(db: AsyncIOMotorDatabase, *, now: datetime | None = None, dt_s: f
 
         moved = step_toward(road, here, target, step_m)
         if moved is None:
-            continue  # closure in the way: the solve loop revokes this pickup (D2-06) and the van moves on
+            continue  # closure in the way: the solve loop revokes this pickup and the van moves on
         pos, reached = moved
         if pos != here:
-            await db.vehicles.update_one(
-                {"_id": v["_id"]},
-                {
-                    "$set": {
+            moves.append(
+                (
+                    {"_id": v["_id"]},
+                    {
                         "location": {"type": "Point", "coordinates": [round(pos[0], 6), round(pos[1], 6)]},
                         "heading": round(_bearing(here, pos), 1),
                         "speedMps": round(step_m / dt_s, 1),
                         "lastSeenAt": now,
-                    }
-                },
+                    },
+                )
             )
             stats["moved"] += 1
         if not reached:
@@ -156,6 +201,7 @@ async def tick(db: AsyncIOMotorDatabase, *, now: datetime | None = None, dt_s: f
             for a in onboard:
                 await asg.progress(db, a["_id"], "completed", by="stand-in driver")
                 stats["completed"] += 1
+    await set_many(db.vehicles, moves)  # every van's new position in one write
     return stats
 
 

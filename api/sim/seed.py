@@ -1,9 +1,9 @@
-"""POST /sim/seed: the simulated world for a scenario (D2-02). Everything written here has `simulated: true`.
+"""POST /sim/seed: the simulated world for a scenario. Everything written here has `simulated: true`.
 
 - ~200 households along SR 89A between Midgley Bridge and Pine Flat (Census tract 16.02 covers this
-  stretch), each linked to one of Aarya's personas so stand-in calls have a script and a ground truth.
-- The mix follows the middle column of docs/story/impact.md: 12% need a ride, 40% of those need a
-  wheelchair space or a lift. Homes get a placeholder fire arrival time until api/hazard/ (D2-07).
+  stretch), each linked to one of the personas in data/personas.json so stand-in calls have a script and a ground truth.
+- The mix follows the middle column of docs/simulation.md: 12% need a ride, 40% of those need a
+  wheelchair space or a lift. Homes get a placeholder fire arrival time until api/hazard/.
 - 8 vehicles (2 paratransit, 2 agency vans, 4 neighbors), 2 shelters, 2 zones (status `ready`).
 - `census="instant"` skips the calls: every home is "answered" with its persona's expected outcome and
   ride requests are created through api.requests. Handy for dispatch work before the dialer exists.
@@ -18,11 +18,11 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api import audit
 from api import requests as rq
-from api.core.util import utcnow
+from api.core.util import new_id, utcnow
 from api.sim import data
 from api.sim.geo import Road, meters
 
-# docs/story/impact.md, middle column
+# docs/simulation.md, middle column
 NEED_RIDE_SHARE = 0.12
 HEAVY_SHARE_OF_RIDERS = 0.40
 
@@ -36,7 +36,7 @@ CLUSTERS = [  # (fraction along the tract, weight) Indian Gardens, Slide Rock, W
 
 FALLBACK_IGNITION = (-111.78, 34.97)
 
-# Fire placeholder (D2-07 replaces): elliptical spread downwind from the ignition point.
+# Fire placeholder: elliptical spread downwind from the ignition point.
 HEAD_SPREAD_M_PER_MIN = 60.0
 ECCENTRICITY = 0.7
 
@@ -63,7 +63,7 @@ VEHICLES: list[dict[str, Any]] = [
         "_id": "vh_tom",
         "kind": "agency_van",
         "driverName": "Tom",
-        "start": "uptown",
+        "start": "uptown_north",
         "capacity": {"seats": 8, "wheelchair": 0, "stretcher": 0},
         "crew": 2,
         "lift": False,
@@ -182,7 +182,7 @@ def _priority(record: dict[str, Any], need: dict[str, Any]) -> float:
 
 
 async def reset(db: AsyncIOMotorDatabase) -> dict[str, int]:
-    """Delete the simulated world. Real households (simulated: false, e.g. the judge's phone) stay."""
+    """Delete the simulated world. Real households (simulated: false, e.g. a kiosk visitor's phone) stay."""
     sim_hh = [h["_id"] async for h in db.households.find({"simulated": True}, {"_id": 1})]
     sim_rq = [r["_id"] async for r in db.requests.find({"householdId": {"$in": sim_hh}}, {"_id": 1})]
     sim_vh = [v["_id"] async for v in db.vehicles.find({"simulated": True}, {"_id": 1})]
@@ -205,15 +205,26 @@ async def seed(
     db: AsyncIOMotorDatabase,
     *,
     scenario: str = "pocket-fire",
-    homes: int = 200,
+    homes: int | None = None,
     rng_seed: int = 42,
     census: Literal["none", "instant"] = "none",
     first_arrival_min: float = 90.0,
 ) -> dict[str, Any]:
     rng = random.Random(rng_seed)
     sc = data.scenario(scenario)
-    road = Road()
     now = utcnow()
+    from api.sim import world  # here: world imports geo, which this module also imports
+
+    await world.save(db, scenario)
+    await db.simControl.update_one({"_id": "sim"}, {"$unset": {"world": ""}})  # an older build kept it here
+    if scenario in world.GRID_SCENARIOS:
+        from api.sim import metro
+
+        return await metro.seed(
+            db, sc, homes=homes, rng=rng, now=now, census=census, first_arrival_min=first_arrival_min
+        )
+    homes = homes or 200
+    road = Road()
 
     removed = await reset(db)
 
@@ -240,6 +251,9 @@ async def seed(
             upsert=True,
         )
 
+    # the Phoenix scenario's zones go when the canyon comes back
+    await db.zones.delete_many({"_id": {"$nin": [zone_south, zone_north]}, "simulated": True})
+
     # ── households ──────────────────────────────────────────────────────────
     groups: dict[str, list[dict[str, Any]]] = {"ride_chair": [], "ride": [], "other": []}
     for p in data.personas():
@@ -254,7 +268,10 @@ async def seed(
         raw.append((fire_minutes(loc, ignition, wind_from), _pick_persona(rng, groups), loc))
 
     earliest = min(m for m, _, _ in raw)
-    # A home the kiosk handed to a judge keeps its hh_sim_ id but is real now (simulated: false), so the
+    # The fire replay (api/hazard/fire.py) starts at this ignition time, so its front reaches each home
+    # exactly at that home's fireArrivalAt below.
+    ignited_at = now + timedelta(minutes=first_arrival_min - earliest)
+    # A home the kiosk handed to a visitor keeps its hh_sim_ id but is real now (simulated: false), so the
     # reset above leaves it alone. Never reuse an id that's still taken.
     taken = {h["_id"] async for h in db.households.find({"_id": {"$regex": "^hh_sim_"}}, {"_id": 1})}
     docs: list[dict[str, Any]] = []
@@ -283,8 +300,21 @@ async def seed(
         )
     await db.households.insert_many(docs)
 
+    from api.hazard import fire  # here, not at the top: api.hazard.spread imports this module
+    from api.hazard.spread import FireRun
+
+    run = FireRun(new_id("fire"), scenario, (float(ignition[0]), float(ignition[1])), wind_from, ignited_at)
+    # seededAt = when the warning went out (the evacuation replay's minute 0)
+    await db.hazards.replace_one({"_id": fire.RUN_ID}, {**fire.run_doc(run), "seededAt": now}, upsert=True)
+
     # ── vehicles ────────────────────────────────────────────────────────────
-    starts = {"uptown": (-111.7615, 34.8705), "west_sedona": (-111.8000, 34.8610), "y": (-111.7650, 34.8635)}
+    starts = {
+        "uptown": (-111.7615, 34.8705),
+        # On SR 89A ~850 m north of Uptown, so Tom's van doesn't sit on top of Luis's on the console map.
+        "uptown_north": (-111.7568, 34.8773),
+        "west_sedona": (-111.8000, 34.8610),
+        "y": (-111.7650, 34.8635),
+    }
     helpers = [d for d in docs if data.persona_group(_persona(d["personaId"])) == "other"]
     neighbor_homes = rng.sample(helpers or docs, k=min(4, len(helpers or docs)))
     nb = iter(neighbor_homes)
@@ -321,6 +351,7 @@ async def seed(
         "households": len(docs),
         "vehicles": len(vehicles),
         "shelters": len(SHELTERS),
+        "fire": {"runId": run.run_id, "ignitedAt": ignited_at},
         "zones": [zone_south, zone_north],
         "requests": requests,
         "removed": removed,
@@ -335,29 +366,60 @@ def _persona(pid: str) -> dict[str, Any]:
     return {}
 
 
-async def instant_census(db: AsyncIOMotorDatabase) -> int:
-    """Answer every simulated, not-yet-reached home with its persona's expected outcome. → requests made."""
-    made = 0
-    async for hh in db.households.find({"simulated": True, "reach": "not_called"}):
-        p = _persona(hh.get("personaId", ""))
+async def instant_census(
+    db: AsyncIOMotorDatabase,
+    *,
+    limit: int | None = None,
+    zone_ids: list[str] | None = None,
+    return_answered: bool = False,
+) -> int:
+    """Answer simulated, not-yet-reached homes with their persona's expected outcome. → requests made.
+
+    Homes the fire reaches first go first. `limit` answers only that many (the progressive census calls
+    this in waves so the map lights up like a real call-out); `zone_ids` keeps it to those zones.
+    Household writes are batched (thousands of homes in the Phoenix scenario)."""
+    q: dict[str, Any] = {"simulated": True, "reach": "not_called"}
+    if zone_ids:
+        q["zoneId"] = {"$in": zone_ids}
+    cursor = db.households.find(q).sort("fireArrivalAt", 1)
+    if limit:
+        cursor = cursor.limit(limit)
+    homes = [hh async for hh in cursor]
+    now = utcnow()
+    by_persona: dict[str, list[str]] = {}
+    riders = []
+    for hh in homes:
+        pid = hh.get("personaId", "")
+        by_persona.setdefault(pid, []).append(hh["_id"])
+        expect = _persona(pid).get("expect") or {}
+        if expect.get("role") == "needs_ride":
+            truth = {k: v for k, v in (_persona(pid).get("truth") or {}).items() if v is not None}
+            riders.append((hh, truth, expect))
+    for pid, ids in by_persona.items():  # one write per persona, not per home
+        p = _persona(pid)
         truth = {k: v for k, v in (p.get("truth") or {}).items() if v is not None}
-        expect = p.get("expect") or {}
-        role = expect.get("role") or "unknown"
-        await db.households.update_one(
-            {"_id": hh["_id"]},
-            {"$set": {"record": truth, "reach": "answered", "role": role, "updatedAt": utcnow()}},
+        role = (p.get("expect") or {}).get("role") or "unknown"
+        await db.households.update_many(
+            {"_id": {"$in": ids}, "reach": "not_called"},
+            {"$set": {"record": truth, "reach": "answered", "role": role, "updatedAt": now}},
         )
-        if role == "needs_ride":
-            need = {
-                "seats": max(1, int(truth.get("peopleCount") or 1)),
-                "wheelchair": 0,
-                "stretcher": 0,
-                "crew": 1,
-                "lift": False,
-                **(expect.get("need") or {}),
+    items = []
+    for hh, truth, expect in riders:
+        need = {
+            "seats": max(1, int(truth.get("peopleCount") or 1)),
+            "wheelchair": 0,
+            "stretcher": 0,
+            "crew": 1,
+            "lift": False,
+            **(expect.get("need") or {}),
+        }
+        items.append(
+            {
+                "householdId": hh["_id"],
+                "need": need,
+                "deadlineAt": hh.get("deadlineAt"),
+                "priority": _priority(truth, need),
             }
-            await rq.upsert_for_household(
-                db, hh["_id"], need=need, deadline_at=hh.get("deadlineAt"), priority=_priority(truth, need)
-            )
-            made += 1
-    return made
+        )
+    await rq.bulk_create_received(db, items)  # one write for the whole wave, not three per rider
+    return len(homes) if return_answered else len(items)
